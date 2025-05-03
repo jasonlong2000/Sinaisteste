@@ -1,179 +1,186 @@
 import os
-import requests
 import time
-import threading
 import asyncio
+import threading
+import requests
+from telegram import Bot
 from flask import Flask
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-FOOTY_API_KEY = os.environ.get("FOOTY_API_KEY")
+# Configurações do bot e API
+BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
+CHAT_ID = -1002675165012
+FOOTYSTATS_API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
+API_URL = f"https://api.football-data-api.com/todays-matches?key={FOOTYSTATS_API_KEY}"
 
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
-FOOTY_API_URL = "https://api.football-data-api.com"
-
+# Inicializa bot e Flask
+bot = Bot(token=BOT_TOKEN)
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "Bot de Sinais Esportivos está rodando."
+    return "Bot está ativo!"
 
-team_names_cache = {}
+triggered = {1: set(), 2: set(), 3: set(), 4: set()}
 
-def get_team_name(team_id):
-    if team_id in team_names_cache:
-        return team_names_cache[team_id]
+def fetch_matches():
+    print("Verificando partidas ao vivo...")
     try:
-        url = f"{FOOTY_API_URL}/team?key={FOOTY_API_KEY}&team_id={team_id}"
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        team_data = data.get("data", {})
-        if isinstance(team_data, list):
-            team_data = team_data[0] if team_data else {}
-        name = team_data.get("name") or team_data.get("full_name") or team_data.get("english_name") or str(team_id)
-        name_pt = team_data.get("name_pt")
-        if name_pt and name_pt.strip():
-            name = name_pt
-        team_names_cache[team_id] = name
-        return name
-    except:
-        return str(team_id)
-
-signaled_matches = {"S1": set(), "S2": set(), "S3": set(), "S4": set()}
-alerted_matches = {"S1": set(), "S2": set(), "S3": set(), "S4": set()}
-
-def send_telegram_message(text):
-    try:
-        url = f"{TELEGRAM_API_URL}/sendMessage"
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text}
-        requests.post(url, data=payload, timeout=5)
+        response = requests.get(API_URL)
+        data = response.json()
+        if data.get("success"):
+            return data.get("data", [])
     except Exception as e:
-        print(f"Erro ao enviar mensagem Telegram: {e}")
+        print(f"Erro ao buscar dados da API: {e}")
+    return []
 
-def check_and_send_signals():
-    try:
-        url = f"{FOOTY_API_URL}/todays-matches?key={FOOTY_API_KEY}"
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-    except Exception as e:
-        print(f"Erro ao consultar partidas: {e}")
-        return
-
-    if not data.get("success"):
-        print("Falha na resposta da API.")
-        return
-
-    matches = data.get("data", [])
+def check_strategy1(matches):
+    print("Executando estratégia 1...")
     for match in matches:
-        try:
-            if match.get("status") != "incomplete":
-                continue
-            match_id = match.get("id")
-            home_goals = match.get("homeGoalCount", 0)
-            away_goals = match.get("awayGoalCount", 0)
-            if match.get("team_a_shots") == -1:
-                continue
-
-            current_minute = None
-            if match.get("date_unix"):
+        match_id = match.get("id")
+        if match_id in triggered[1]:
+            continue
+        shots_a = match.get("team_a_shots")
+        shots_b = match.get("team_b_shots")
+        corners_a = match.get("team_a_corners")
+        corners_b = match.get("team_b_corners")
+        pos_a = match.get("team_a_possession")
+        pos_b = match.get("team_b_possession")
+        if None in (shots_a, shots_b, corners_a, corners_b, pos_a, pos_b):
+            continue
+        if -1 in (shots_a, shots_b, corners_a, corners_b, pos_a, pos_b):
+            continue
+        total_shots = shots_a + shots_b
+        total_corners = corners_a + corners_b
+        max_pos = max(pos_a, pos_b)
+        start_time = match.get("date_unix")
+        if not start_time:
+            continue
+        elapsed = int((time.time() - start_time) // 60)
+        if 25 <= elapsed <= 45:
+            if total_shots >= 6 and total_corners >= 4 and max_pos >= 60:
+                home = match.get("home_name", "Casa")
+                away = match.get("away_name", "Fora")
+                text = f"⚽ Estratégia 1: {home} x {away}\nMin: {elapsed}' | Chutes: {total_shots} | Escanteios: {total_corners} | Posse: {max_pos}%"
                 try:
-                    kickoff_ts = int(match["date_unix"])
-                    elapsed = time.time() - kickoff_ts
-                    current_minute = min(max(0, int(elapsed // 60)), 90)
-                except:
-                    current_minute = None
+                    bot.send_message(chat_id=CHAT_ID, text=text)
+                    triggered[1].add(match_id)
+                except Exception as e:
+                    print(f"Erro Estratégia 1: {e}")
 
-            shots_home = max(0, match.get("team_a_shots", 0))
-            shots_away = max(0, match.get("team_b_shots", 0))
-            shots_on_target_home = max(0, match.get("team_a_shotsOnTarget", 0))
-            shots_on_target_away = max(0, match.get("team_b_shotsOnTarget", 0))
-            corners_home = max(0, match.get("team_a_corners", 0))
-            corners_away = max(0, match.get("team_b_corners", 0))
-            fouls_home = max(0, match.get("team_a_fouls", 0))
-            fouls_away = max(0, match.get("team_b_fouls", 0))
-            poss_home = max(0, match.get("team_a_possession", 0))
-            poss_away = max(0, match.get("team_b_possession", 0))
+def check_strategy2(matches):
+    print("Executando estratégia 2...")
+    for match in matches:
+        match_id = match.get("id")
+        if match_id in triggered[2]:
+            continue
+        shots_a = match.get("team_a_shots")
+        shots_b = match.get("team_b_shots")
+        corners_a = match.get("team_a_corners")
+        corners_b = match.get("team_b_corners")
+        goals_a = match.get("homeGoalCount", 0)
+        goals_b = match.get("awayGoalCount", 0)
+        if None in (shots_a, shots_b, corners_a, corners_b, goals_a, goals_b):
+            continue
+        total_shots = shots_a + shots_b
+        total_corners = corners_a + corners_b
+        total_goals = goals_a + goals_b
+        start_time = match.get("date_unix")
+        if not start_time:
+            continue
+        elapsed = int((time.time() - start_time) // 60)
+        if 50 <= elapsed <= 75:
+            if total_goals == 0 and total_shots >= 12 and total_corners >= 5:
+                home = match.get("home_name", "Casa")
+                away = match.get("away_name", "Fora")
+                text = f"🔥 Estratégia 2: {home} x {away}\nMin: {elapsed}' | Chutes: {total_shots} | Escanteios: {total_corners}"
+                try:
+                    bot.send_message(chat_id=CHAT_ID, text=text)
+                    triggered[2].add(match_id)
+                except Exception as e:
+                    print(f"Erro Estratégia 2: {e}")
 
-            total_shots = shots_home + shots_away
-            total_shots_on_target = shots_on_target_home + shots_on_target_away
-            total_corners = corners_home + corners_away
-            total_fouls = fouls_home + fouls_away
-            max_possession = max(poss_home, poss_away)
+def check_strategy3(matches):
+    print("Executando estratégia 3...")
+    for match in matches:
+        match_id = match.get("id")
+        if match_id in triggered[3]:
+            continue
+        fouls_a = match.get("team_a_fouls")
+        fouls_b = match.get("team_b_fouls")
+        shots_a = match.get("team_a_shots")
+        shots_b = match.get("team_b_shots")
+        corners_a = match.get("team_a_corners")
+        corners_b = match.get("team_b_corners")
+        if None in (fouls_a, fouls_b, shots_a, shots_b, corners_a, corners_b):
+            continue
+        total_fouls = fouls_a + fouls_b
+        total_shots = shots_a + shots_b
+        total_corners = corners_a + corners_b
+        start_time = match.get("date_unix")
+        if not start_time:
+            continue
+        elapsed = int((time.time() - start_time) // 60)
+        if elapsed <= 80:
+            if total_fouls >= 20 and total_corners >= 8 and total_shots >= 10:
+                home = match.get("home_name", "Casa")
+                away = match.get("away_name", "Fora")
+                text = f"🟨 Estratégia 3: {home} x {away}\nMin: {elapsed}' | Faltas: {total_fouls} | Chutes: {total_shots} | Escanteios: {total_corners}"
+                try:
+                    bot.send_message(chat_id=CHAT_ID, text=text)
+                    triggered[3].add(match_id)
+                except Exception as e:
+                    print(f"Erro Estratégia 3: {e}")
 
-            home_team_name = get_team_name(match.get("homeID"))
-            away_team_name = get_team_name(match.get("awayID"))
-            score_text = f"{home_goals}x{away_goals}"
-            minute_text = f"{current_minute}'" if current_minute is not None else ""
+def check_strategy4(matches):
+    print("Executando estratégia 4...")
+    for match in matches:
+        match_id = match.get("id")
+        if match_id in triggered[4]:
+            continue
+        shots_a = match.get("team_a_shots")
+        shots_b = match.get("team_b_shots")
+        corners_a = match.get("team_a_corners")
+        corners_b = match.get("team_b_corners")
+        pos_a = match.get("team_a_possession")
+        pos_b = match.get("team_b_possession")
+        if None in (shots_a, shots_b, corners_a, corners_b, pos_a, pos_b):
+            continue
+        total_shots = shots_a + shots_b
+        total_corners = corners_a + corners_b
+        max_pos = max(pos_a, pos_b)
+        start_time = match.get("date_unix")
+        if not start_time:
+            continue
+        elapsed = int((time.time() - start_time) // 60)
+        if 10 <= elapsed <= 75:
+            if total_shots >= 10 and max_pos >= 60 and total_corners <= 6:
+                home = match.get("home_name", "Casa")
+                away = match.get("away_name", "Fora")
+                text = f"🚩 Estratégia 4: {home} x {away}\nMin: {elapsed}' | Chutes: {total_shots} | Escanteios: {total_corners} | Posse: {max_pos}%"
+                try:
+                    bot.send_message(chat_id=CHAT_ID, text=text)
+                    triggered[4].add(match_id)
+                except Exception as e:
+                    print(f"Erro Estratégia 4: {e}")
 
-            if current_minute is None or (25 <= current_minute <= 45):
-                strat = "S1"
-                if total_shots_on_target >= 6 and total_corners >= 4 and max_possession >= 60:
-                    if match_id not in signaled_matches[strat]:
-                        msg = f"🚨 Over 0.5 HT:\n{home_team_name} x {away_team_name} - {score_text} {minute_text}\nChutes: {total_shots_on_target}, Escanteios: {total_corners}, Posse: {poss_home}% - {poss_away}%"
-                        send_telegram_message(msg)
-                        signaled_matches[strat].add(match_id)
-                elif total_shots_on_target >= 4 and total_corners >= 3 and max_possession >= 55:
-                    if match_id not in alerted_matches[strat]:
-                        msg = f"👀 Analisando (Over 0.5 HT): {home_team_name} x {away_team_name} - {minute_text}"
-                        send_telegram_message(msg)
-                        alerted_matches[strat].add(match_id)
-
-            if current_minute is None or (50 <= current_minute <= 75):
-                strat = "S2"
-                if home_goals == 0 and away_goals == 0:
-                    if total_shots >= 12 and total_corners >= 5:
-                        if match_id not in signaled_matches[strat]:
-                            msg = f"🚨 Over 1.5 FT:\n{home_team_name} x {away_team_name} - {score_text} {minute_text}\nChutes: {total_shots}, Escanteios: {total_corners}"
-                            send_telegram_message(msg)
-                            signaled_matches[strat].add(match_id)
-                    elif total_shots >= 8 and total_corners >= 4:
-                        if match_id not in alerted_matches[strat]:
-                            msg = f"👀 Analisando (Over 1.5 FT): {home_team_name} x {away_team_name} - {minute_text}"
-                            send_telegram_message(msg)
-                            alerted_matches[strat].add(match_id)
-
-            if current_minute is None or current_minute <= 80:
-                strat = "S3"
-                if total_fouls >= 20 and total_shots >= 10 and total_corners >= 8:
-                    if match_id not in signaled_matches[strat]:
-                        msg = f"🚨 Cartões:\n{home_team_name} x {away_team_name} - {minute_text}\nFaltas: {total_fouls}, Chutes: {total_shots}, Escanteios: {total_corners}"
-                        send_telegram_message(msg)
-                        signaled_matches[strat].add(match_id)
-                elif total_fouls >= 15 and total_shots >= 7 and total_corners >= 6:
-                    if match_id not in alerted_matches[strat]:
-                        msg = f"👀 Analisando (Cartões): {home_team_name} x {away_team_name} - {minute_text}"
-                        send_telegram_message(msg)
-                        alerted_matches[strat].add(match_id)
-
-            if current_minute is None or (10 <= current_minute <= 75):
-                strat = "S4"
-                if total_corners <= 6:
-                    if total_shots >= 10 and max_possession >= 60:
-                        if match_id not in signaled_matches[strat]:
-                            msg = f"🚨 Escanteios:\n{home_team_name} x {away_team_name} - {minute_text}\nChutes: {total_shots}, Escanteios: {total_corners}, Posse: {poss_home}% - {poss_away}%"
-                            send_telegram_message(msg)
-                            signaled_matches[strat].add(match_id)
-                    elif total_shots >= 7 and max_possession >= 55:
-                        if match_id not in alerted_matches[strat]:
-                            msg = f"👀 Analisando (Escanteios): {home_team_name} x {away_team_name} - {minute_text}"
-                            send_telegram_message(msg)
-                            alerted_matches[strat].add(match_id)
-        except Exception as e:
-            print(f"Erro ao processar jogo {match.get('id')}: {e}")
-
-async def background_loop():
-    send_telegram_message("✅ Bot de sinais ativado e monitorando jogos ao vivo!")
+async def main_loop():
+    try:
+        bot.send_message(chat_id=CHAT_ID, text="🤖 Bot de sinais esportivos ativado!")
+    except Exception as e:
+        print(f"Erro aviso inicial: {e}")
     while True:
-        await asyncio.to_thread(check_and_send_signals)
+        matches = fetch_matches()
+        if matches:
+            check_strategy1(matches)
+            check_strategy2(matches)
+            check_strategy3(matches)
+            check_strategy4(matches)
         await asyncio.sleep(120)
 
-def start_background_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(background_loop())
-
-threading.Thread(target=start_background_loop, daemon=True).start()
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    threading.Thread(target=run_flask, daemon=True).start()
+    asyncio.run(main_loop())
