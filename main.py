@@ -23,6 +23,7 @@ def index():
 triggered = {1: set(), 2: set(), 3: set(), 4: set()}
 
 def fetch_matches():
+    print("Verificando partidas ao vivo...")
     try:
         response = requests.get(API_URL)
         data = response.json()
@@ -33,6 +34,7 @@ def fetch_matches():
     return []
 
 def check_strategy1(matches):
+    print("Executando estratégia 1...")
     for match in matches:
         match_id = match.get("id")
         if match_id in triggered[1]:
@@ -66,6 +68,7 @@ def check_strategy1(matches):
                     print(f"Erro Estratégia 1: {e}")
 
 def check_strategy2(matches):
+    print("Executando estratégia 2...")
     for match in matches:
         match_id = match.get("id")
         if match_id in triggered[2]:
@@ -97,6 +100,7 @@ def check_strategy2(matches):
                     print(f"Erro Estratégia 2: {e}")
 
 def check_strategy3(matches):
+    print("Executando estratégia 3...")
     for match in matches:
         match_id = match.get("id")
         if match_id in triggered[3]:
@@ -128,6 +132,7 @@ def check_strategy3(matches):
                     print(f"Erro Estratégia 3: {e}")
 
 def check_strategy4(matches):
+    print("Executando estratégia 4...")
     for match in matches:
         match_id = match.get("id")
         if match_id in triggered[4]:
