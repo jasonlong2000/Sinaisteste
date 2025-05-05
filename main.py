@@ -33,19 +33,20 @@ def format_match(match):
     status = match.get("status", "-").upper()
     minute = match.get("minute", "-")
     timestamp = match.get("date_unix", 0)
-    horario = datetime.fromtimestamp(timestamp).strftime('%H:%M') if timestamp else "?"
-    return f"\u26bd {home} x {away}\nStatus: {status} | Minuto: {minute} | Hor\u00e1rio: {horario}"
+    date_str = datetime.fromtimestamp(timestamp).strftime('%d/%m') if timestamp else "?"
+    hour_str = datetime.fromtimestamp(timestamp).strftime('%H:%M') if timestamp else "?"
+    return f"⚽ {home} x {away}\nStatus: {status} | Minuto: {minute} | Data: {date_str} | Horário: {hour_str}"
 
 
 def main():
-    bot.send_message(chat_id=CHAT_ID, text="\ud83d\ude80 Bot iniciado!\n\ud83d\udcc5 Buscando jogos do dia...")
+    bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Buscando jogos do dia...")
     total = 0
 
     for league_id in LEAGUE_IDS:
         matches = fetch_today_matches(league_id)
 
         if not matches:
-            msg = f"\u26a0\ufe0f Liga {league_id}: Nenhum jogo encontrado ou erro na API"
+            msg = f"⚠️ Liga {league_id}: Nenhum jogo encontrado ou erro na API"
             bot.send_message(chat_id=CHAT_ID, text=msg)
             continue
 
@@ -60,7 +61,7 @@ def main():
                 time.sleep(1.5)  # evitar flood
 
     if total == 0:
-        bot.send_message(chat_id=CHAT_ID, text="\u26a0\ufe0f Nenhum jogo ativo ou programado para hoje nas ligas selecionadas.")
+        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo ativo ou programado para hoje nas ligas selecionadas.")
 
 
 if __name__ == "__main__":
