@@ -5,7 +5,7 @@ from telegram import Bot
 from flask import Flask
 from threading import Thread
 
-# Configurações de ambiente
+# Configurações via variáveis de ambiente
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FOOTYSTATS_API_KEY = os.getenv("FOOTYSTATS_API_KEY")
@@ -53,18 +53,18 @@ def buscar_jogos_hoje():
                 encontrados += 1
                 home = jogo.get("home_name", "Time A")
                 away = jogo.get("away_name", "Time B")
-                msg = f"\ud83c\udf1f *Jogo de Hoje*\n{home} x {away}\nStatus: {status.upper()}\nData: {data_jogo}"
+                msg = f"\U0001F3DF *Jogo de Hoje*\n{home} x {away}\nStatus: {status.upper()}\nData: {data_jogo}"
                 enviar_mensagem(msg)
 
         if encontrados == 0:
-            enviar_mensagem("\u26a0\ufe0f Nenhum jogo com data de hoje confirmado.")
+            enviar_mensagem("⚠️ Nenhum jogo com data de hoje confirmado.")
 
     except Exception as e:
         print("Erro ao buscar jogos:", e)
         enviar_mensagem("Erro ao buscar jogos de hoje.")
 
 def iniciar():
-    enviar_mensagem("\ud83d\ude80 Bot iniciado com sucesso! Buscando jogos de hoje...")
+    enviar_mensagem("🚀 Bot iniciado com sucesso! Buscando jogos de hoje...")
     buscar_jogos_hoje()
 
 if __name__ == "__main__":
