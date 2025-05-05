@@ -54,4 +54,4 @@ def buscar_jogos():
 if __name__ == "__main__":
     while True:
         buscar_jogos()
-        time.sleep(21600)  # espera 6h
+        time.sleep(21600)  # Espera 6h
