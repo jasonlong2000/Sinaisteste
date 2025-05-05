@@ -1,66 +1,63 @@
 import os
+import threading
 import asyncio
 import aiohttp
 import datetime
+from dateutil.parser import parse
 from flask import Flask
-import threading
 
+# === Variáveis de ambiente ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS", "")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS")
 
 if not BOT_TOKEN or not CHAT_ID or not API_KEY:
-    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar definidos.")
+    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
 
-league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()]
-if not league_ids:
-    league_ids = ["2012"]  # Premier League como padrão
-
+# Liga padrao se não houver
+league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()] if LEAGUE_IDS else ["2012"]
 BASE_URL = "https://api.football-data-api.com"
-league_urls = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}" for lid in league_ids]
+LEAGUE_URLS = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}" for lid in league_ids]
 
+# Flask app
 app = Flask(__name__)
 
 @app.route("/")
-def index():
-    return "Bot de debug ativo!"
+def home():
+    return "Bot de análise pré-jogo está ativo."
 
 async def send_telegram(session, text):
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        await session.get(url, params={"chat_id": CHAT_ID, "text": text})
+        params = {"chat_id": CHAT_ID, "text": text}
+        await session.get(url, params=params)
     except Exception as e:
-        print(f"Erro ao enviar mensagem: {e}")
+        print(f"[ERRO Telegram] {e}")
 
-async def verificar_ligas():
-    hoje = datetime.date.today().strftime("%Y-%m-%d")
-    async with aiohttp.ClientSession() as session:
-        await send_telegram(session, f"🧪 Iniciando verificação de jogos ({hoje})")
-        for url in league_urls:
-            try:
-                async with session.get(url) as resp:
-                    data = await resp.json()
-                    liga_id = url.split("=")[-1]
-                    if "data" in data:
-                        jogos = data["data"]
-                        texto = f"⚽ Liga {liga_id}: {len(jogos)} jogos encontrados\n"
-                        for jogo in jogos:
-                            status = jogo.get("status", "indefinido")
-                            data_jogo = jogo.get("date", "sem data")
-                            texto += f"• {data_jogo} | status: {status}\n"
-                        await send_telegram(session, texto)
-                    else:
-                        await send_telegram(session, f"⚠️ Erro ao buscar liga {liga_id}: {data.get('error', 'sem detalhes')}")
-            except Exception as e:
-                await send_telegram(session, f"❌ Erro ao acessar API da liga {url}: {e}")
+async def fetch_games(session):
+    all_matches = []
+    for url in LEAGUE_URLS:
+        try:
+            async with session.get(url) as resp:
+                data = await resp.json()
+                if data and "data" in data:
+                    all_matches.extend(data["data"])
+        except Exception as e:
+            print(f"[ERRO API] {e}")
+    return all_matches
 
-def start_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(verificar_ligas())
-
-if __name__ == "__main__":
-    threading.Thread(target=start_loop).start()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+async def process_games(session, games):
+    hoje = datetime.date.today()
+    encontrados = 0
+    for jogo in games:
+        data_partida = jogo.get("date")
+        if not data_partida:
+            continue
+        try:
+            data_jogo = parse(data_partida).date()
+            if data_jogo == hoje:
+                home = jogo.get("homeTeam", "Time A")
+                away = jogo.get("awayTeam", "Time B")
+                status = jogo.get("status", "-")
+                msg = f"
