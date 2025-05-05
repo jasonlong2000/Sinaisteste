@@ -1,63 +1,78 @@
 import os
-import threading
 import asyncio
 import aiohttp
-import datetime
-from dateutil.parser import parse
+import threading
 from flask import Flask
 
-# === Variáveis de ambiente ===
+# === CONFIGURAÇÕES ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("FOOTYSTATS_API_KEY")
 LEAGUE_IDS = os.getenv("LEAGUE_IDS")
 
 if not BOT_TOKEN or not CHAT_ID or not API_KEY:
-    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
+    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar definidos.")
 
-# Liga padrao se não houver
-league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()] if LEAGUE_IDS else ["2012"]
+league_ids = [lid.strip() for lid in (LEAGUE_IDS or "2012").split(",") if lid.strip()]
+
 BASE_URL = "https://api.football-data-api.com"
-LEAGUE_URLS = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}" for lid in league_ids]
+league_urls = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}" for lid in league_ids]
 
-# Flask app
 app = Flask(__name__)
 
 @app.route("/")
-def home():
-    return "Bot de análise pré-jogo está ativo."
+def index():
+    return "Servidor ativo"
 
 async def send_telegram(session, text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    params = {"chat_id": CHAT_ID, "text": text}
     try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        params = {"chat_id": CHAT_ID, "text": text}
         await session.get(url, params=params)
     except Exception as e:
-        print(f"[ERRO Telegram] {e}")
+        print("Erro ao enviar mensagem:", e)
 
-async def fetch_games(session):
-    all_matches = []
-    for url in LEAGUE_URLS:
+async def buscar_partidas(session):
+    partidas = []
+    for url in league_urls:
         try:
             async with session.get(url) as resp:
                 data = await resp.json()
-                if data and "data" in data:
-                    all_matches.extend(data["data"])
+                if "data" in data:
+                    partidas.extend(data["data"])
         except Exception as e:
-            print(f"[ERRO API] {e}")
-    return all_matches
+            print("Erro ao buscar:", e)
+    return partidas
 
-async def process_games(session, games):
-    hoje = datetime.date.today()
-    encontrados = 0
-    for jogo in games:
-        data_partida = jogo.get("date")
-        if not data_partida:
-            continue
-        try:
-            data_jogo = parse(data_partida).date()
-            if data_jogo == hoje:
-                home = jogo.get("homeTeam", "Time A")
-                away = jogo.get("awayTeam", "Time B")
-                status = jogo.get("status", "-")
-                msg = f"
+async def analisar_e_enviar(session, partidas):
+    for partida in partidas:
+        home = partida.get("homeTeam", "Time A")
+        away = partida.get("awayTeam", "Time B")
+        status = partida.get("status", "-").upper()
+        minute = partida.get("minute", "-") or partida.get("mins", "-")
+
+        msg = f"\ud83c\udfdf\ufe0f {home} x {away}\nStatus: {status} | Minuto: {minute}"
+        await send_telegram(session, msg)
+
+async def rotina():
+    async with aiohttp.ClientSession() as session:
+        await send_telegram(session, "\ud83d\ude80 Bot ativado e buscando jogos do dia...")
+        partidas = await buscar_partidas(session)
+        if partidas:
+            await analisar_e_enviar(session, partidas)
+        else:
+            await send_telegram(session, "\ud83d\udccd Nenhum jogo agendado para hoje nas ligas configuradas.")
+
+async def agendador():
+    while True:
+        await rotina()
+        await asyncio.sleep(21600)  # 6 horas
+
+def iniciar_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(agendador())
+
+if __name__ == "__main__":
+    threading.Thread(target=iniciar_loop, daemon=True).start()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
