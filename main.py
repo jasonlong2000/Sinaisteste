@@ -1,64 +1,66 @@
-import requests
-import time
 import os
+import requests
+import datetime
 from telegram import Bot
 
-# Configurações da API e do Telegram
-API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
-CHAT_ID = "-1002675165012"
-BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
+# Configurações de ambiente
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS")  # Ex: "2012,2036,..."
 
-# Lista das ligas configuradas
-LEAGUE_IDS = [
-    2003, 2004, 2005, 2006, 2007, 2008,
-    2012, 2013, 2014, 2015, 2016, 2017,
-    2022, 2023, 2026, 2031, 2032, 2033,
-    2034, 2035, 2036, 2037, 2038, 2039,
-    2040
-]
+if not BOT_TOKEN or not CHAT_ID or not API_KEY or not LEAGUE_IDS:
+    raise RuntimeError("Variáveis de ambiente obrigatórias não definidas.")
 
 bot = Bot(token=BOT_TOKEN)
+league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()]
 
+BASE_URL = "https://api.football-data-api.com/league-matches"
 
-def fetch_today_matches(league_id):
-    url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
+def get_today_date_str():
+    today = datetime.datetime.now().date()
+    return today.strftime("%Y-%m-%d")
+
+def fetch_matches_for_league(league_id):
+    params = {
+        "key": API_KEY,
+        "league_id": league_id,
+        "date_from": get_today_date_str(),
+        "date_to": get_today_date_str(),
+        "page": 1
+    }
     try:
-        response = requests.get(url)
+        response = requests.get(BASE_URL, params=params)
         data = response.json()
         return data.get("data", [])
     except Exception as e:
         print(f"Erro ao buscar dados da liga {league_id}: {e}")
         return []
 
-
-def format_match(match):
-    home = match.get("home_name", "Time A")
-    away = match.get("away_name", "Time B")
-    status = match.get("status", "-")
-    minute = match.get("minute", "-")
-    return f"\u26bd {home} x {away}\nStatus: {status.upper()} | Minuto: {minute}"
-
+def enviar_mensagem(texto):
+    try:
+        bot.send_message(chat_id=CHAT_ID, text=texto)
+    except Exception as e:
+        print(f"Erro ao enviar mensagem: {e}")
 
 def main():
-    bot.send_message(chat_id=CHAT_ID, text="\ud83d\ude80 Bot iniciado!\n\ud83d\udcc5 Buscando jogos das ligas configuradas...")
-
-    total_matches = 0
-    for league_id in LEAGUE_IDS:
-        matches = fetch_today_matches(league_id)
-        if not matches:
-            msg = f"\u26a0\ufe0f Liga {league_id}: Nenhum jogo encontrado ou erro na API"
-            bot.send_message(chat_id=CHAT_ID, text=msg)
+    enviar_mensagem("\ud83d\ude80 Bot iniciado!\n\ud83d\udcc5 Buscando jogos das ligas configuradas...")
+    jogos_hoje = 0
+    for league_id in league_ids:
+        partidas = fetch_matches_for_league(league_id)
+        if partidas:
+            for match in partidas:
+                home = match.get("home_name", "Time A")
+                away = match.get("away_name", "Time B")
+                status = match.get("status", "unknown").upper()
+                msg = f"\ud83c\udf0a {home} x {away}\nStatus: {status}"
+                enviar_mensagem(msg)
+                jogos_hoje += 1
         else:
-            for match in matches:
-                formatted = format_match(match)
-                bot.send_message(chat_id=CHAT_ID, text=formatted)
-                total_matches += 1
-        time.sleep(2)  # evita flood no Telegram
+            enviar_mensagem(f"\u26a0\ufe0f Liga {league_id}: Nenhum jogo encontrado ou erro na API")
 
-    if total_matches == 0:
-        bot.send_message(chat_id=CHAT_ID, text="\u26a0\ufe0f Nenhum jogo agendado para hoje nas ligas selecionadas.")
+    if jogos_hoje == 0:
+        enviar_mensagem("\u26a0\ufe0f Nenhum jogo agendado para hoje nas ligas selecionadas.")
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
-p
