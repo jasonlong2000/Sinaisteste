@@ -1,78 +1,77 @@
 import os
-import asyncio
 import aiohttp
-import threading
+import asyncio
 from flask import Flask
+import threading
 
-# === CONFIGURAÇÕES ===
+# === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS")  # Ex: "2012, 2015, 2019"
 
 if not BOT_TOKEN or not CHAT_ID or not API_KEY:
-    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar definidos.")
+    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
 
-league_ids = [lid.strip() for lid in (LEAGUE_IDS or "2012").split(",") if lid.strip()]
+league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()]
+if not league_ids:
+    league_ids = ["2012"]  # fallback para Premier League
 
 BASE_URL = "https://api.football-data-api.com"
-league_urls = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}" for lid in league_ids]
-
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "Servidor ativo"
+    return "Bot de análise pré-jogo está ativo!"
 
-async def send_telegram(session, text):
+async def send_message(session, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    params = {"chat_id": CHAT_ID, "text": text}
     try:
-        await session.get(url, params=params)
+        await session.post(url, data={"chat_id": CHAT_ID, "text": text})
     except Exception as e:
         print("Erro ao enviar mensagem:", e)
 
-async def buscar_partidas(session):
-    partidas = []
-    for url in league_urls:
+async def fetch_matches(session):
+    matches = []
+    for lid in league_ids:
+        url = f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}"
         try:
             async with session.get(url) as resp:
                 data = await resp.json()
-                if "data" in data:
-                    partidas.extend(data["data"])
+                if data.get("success") and data.get("data"):
+                    matches.extend(data["data"])
         except Exception as e:
-            print("Erro ao buscar:", e)
-    return partidas
+            print(f"Erro ao buscar jogos da liga {lid}: {e}")
+    return matches
 
-async def analisar_e_enviar(session, partidas):
-    for partida in partidas:
-        home = partida.get("homeTeam", "Time A")
-        away = partida.get("awayTeam", "Time B")
-        status = partida.get("status", "-").upper()
-        minute = partida.get("minute", "-") or partida.get("mins", "-")
+async def listar_partidas(session):
+    await send_message(session, "🚀 Bot ativado e buscando jogos do dia...")
+    jogos = await fetch_matches(session)
+    if not jogos:
+        await send_message(session, "📍 Nenhum jogo agendado para hoje nas ligas configuradas.")
+        return
 
-        msg = f"\ud83c\udfdf\ufe0f {home} x {away}\nStatus: {status} | Minuto: {minute}"
-        await send_telegram(session, msg)
+    encontrados = 0
+    for match in jogos:
+        status = match.get("status", "")
+        if status.lower() in ["not_started", "inplay"]:
+            home = match.get("homeTeam") or match.get("home_name") or "Time A"
+            away = match.get("awayTeam") or match.get("away_name") or "Time B"
+            minute = match.get("minute") or "-"
+            msg = f"🏟 {home} x {away}\nStatus: {status.upper()} | Minuto: {minute}"
+            await send_message(session, msg)
+            encontrados += 1
 
-async def rotina():
+    if encontrados == 0:
+        await send_message(session, "⚠️ Nenhuma partida ativa ou agendada nas ligas selecionadas.")
+
+async def start_bot():
     async with aiohttp.ClientSession() as session:
-        await send_telegram(session, "\ud83d\ude80 Bot ativado e buscando jogos do dia...")
-        partidas = await buscar_partidas(session)
-        if partidas:
-            await analisar_e_enviar(session, partidas)
-        else:
-            await send_telegram(session, "\ud83d\udccd Nenhum jogo agendado para hoje nas ligas configuradas.")
+        await listar_partidas(session)
 
-async def agendador():
-    while True:
-        await rotina()
-        await asyncio.sleep(21600)  # 6 horas
-
-def iniciar_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(agendador())
+def flask_thread():
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
-    threading.Thread(target=iniciar_loop, daemon=True).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    threading.Thread(target=flask_thread, daemon=True).start()
+    asyncio.run(start_bot())
