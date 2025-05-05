@@ -7,7 +7,7 @@ API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
 
-# IDs das ligas que você solicitou
+# IDs das ligas configuradas
 LEAGUE_IDS = [
     2003, 2004, 2005, 2006, 2007, 2008, 2012, 2013, 2014, 2015, 2016, 2017,
     2022, 2023, 2026, 2031, 2032, 2033, 2034, 2035, 2036, 2037, 2038, 2039, 2040
@@ -45,7 +45,7 @@ def main():
                 texto = format_match(jogo)
                 bot.send_message(chat_id=CHAT_ID, text=texto)
                 total += 1
-        time.sleep(2)  # evita flood
+        time.sleep(2)
 
     if total == 0:
         bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo agendado para hoje nas ligas selecionadas.")
