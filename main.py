@@ -1,70 +1,71 @@
 import os
-import asyncio
 import aiohttp
+import asyncio
+from datetime import datetime
 from flask import Flask
-import threading
 
-# === CONFIGURAÇÕES ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS", "").split(",")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS")
 
 if not BOT_TOKEN or not CHAT_ID or not API_KEY:
     raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
 
-# === URLs ===
-BASE_URL = "https://api.football-data-api.com"
-LEAGUE_URLS = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid.strip()}" for lid in LEAGUE_IDS if lid.strip()]
+league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()]
+if not league_ids:
+    league_ids = ["2012"]  # Premier League como fallback
 
+BASE_URL = "https://api.football-data-api.com"
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "Bot pré-jogo está ativo!"
+    return "Bot de análise pré-jogo está ativo."
 
 async def send_message(session, text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    await session.get(url, params={"chat_id": CHAT_ID, "text": text})
+    try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        await session.post(url, data={"chat_id": CHAT_ID, "text": text})
+    except Exception as e:
+        print(f"Erro ao enviar mensagem: {e}")
 
-async def fetch_matches(session):
-    matches = []
-    for url in LEAGUE_URLS:
-        try:
-            async with session.get(url) as resp:
-                data = await resp.json()
-                if data.get("success"):
-                    matches.extend(data.get("data", []))
-        except Exception as e:
-            print(f"Erro ao buscar dados: {e}")
-    return matches
-
-async def analisar_jogos(session):
-    jogos = await fetch_matches(session)
-    if not jogos:
-        await send_message(session, "📭 Nenhum jogo encontrado para hoje nas ligas configuradas.")
-        return
-
-    await send_message(session, f"🚀 Bot ativado e listando jogos do dia ({len(jogos)} jogo(s) encontrados):")
-
-    for jogo in jogos:
-        status = jogo.get("status", "-").upper()
-        minuto = jogo.get("minute", "-") or jogo.get("mins", "-")
-        casa = jogo.get("home_name", "Time A")
-        fora = jogo.get("away_name", "Time B")
-
-        texto = f"\ud83c\udfdf\ufe0f {casa} x {fora}\nStatus: {status} | Minuto: {minuto}"
-        await send_message(session, texto)
-
-async def executar():
+async def buscar_partidas():
     async with aiohttp.ClientSession() as session:
-        await send_message(session, "\ud83d\udd34 Bot de análise pré-jogo ativado. Verificando oportunidades...")
-        await analisar_jogos(session)
+        await send_message(session, "🚀 Bot ativado e buscando jogos de hoje...")
+        hoje = datetime.utcnow().date()
+        jogos_encontrados = []
 
-def flask_background():
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+        for lid in league_ids:
+            url = f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}"
+            try:
+                async with session.get(url) as resp:
+                    data = await resp.json()
+            except Exception as e:
+                print(f"Erro ao acessar liga {lid}: {e}")
+                continue
+
+            if data.get("success") and "data" in data:
+                for jogo in data["data"]:
+                    try:
+                        status = jogo.get("status", "").lower()
+                        dt = datetime.utcfromtimestamp(jogo.get("date_unix", 0)).date()
+
+                        if dt == hoje and status in ["not_started", "fixture"]:
+                            home = jogo.get("homeTeam") or jogo.get("home_name", "Time A")
+                            away = jogo.get("awayTeam") or jogo.get("away_name", "Time B")
+                            liga = jogo.get("league_name", "Liga")
+                            hora = datetime.utcfromtimestamp(jogo.get("date_unix", 0)).strftime("%H:%M")
+                            jogos_encontrados.append(f"🌟 {home} x {away} | Início: {hora} | {liga}")
+                    except:
+                        continue
+
+        if jogos_encontrados:
+            await send_message(session, f"🔹 {len(jogos_encontrados)} jogo(s) encontrados para hoje:")
+            for jogo in jogos_encontrados:
+                await send_message(session, jogo)
+        else:
+            await send_message(session, "📍 Nenhum jogo agendado para hoje nas ligas configuradas.")
 
 if __name__ == "__main__":
-    threading.Thread(target=flask_background).start()
-    asyncio.run(executar())
+    asyncio.run(buscar_partidas())
