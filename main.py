@@ -1,68 +1,47 @@
 import os
-import asyncio
-import aiohttp
+import requests
 from datetime import datetime
 from telegram import Bot
-from telegram.error import RetryAfter, TimedOut
 
-# === Configurações ===
+# Configurações
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS", "2012").split(",")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS", "12137,14231,14210,14305,13857,13939,13863,12325,12036,12451,12473,9816,12446,12321,12327,12053,12278,12337,2426,12529,11084,1410,9128,13734,13878,12076,11500,12530,12316,13624,12535,13973").split(",")
 
 bot = Bot(token=BOT_TOKEN)
 
-async def send_message_safe(text):
+def fetch_today_matches(league_id):
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    url = f"https://api.football-data-api.com/league-matches?key={API_KEY}&league_id={league_id}&date_from={today}&date_to={today}"
     try:
-        await bot.send_message(chat_id=CHAT_ID, text=text)
-    except RetryAfter as e:
-        await asyncio.sleep(e.retry_after)
-        await bot.send_message(chat_id=CHAT_ID, text=text)
-    except TimedOut:
-        print("[ERRO] Timeout no envio ao Telegram. Ignorando...")
+        response = requests.get(url, timeout=10)
+        return response.json().get("data", [])
     except Exception as e:
-        print(f"[ERRO] Falha ao enviar mensagem: {e}")
+        print(f"Erro ao buscar dados da liga {league_id}: {e}")
+        return []
 
-async def buscar_jogos():
-    await send_message_safe("🚀 Bot iniciado!\n📅 Buscando jogos das ligas configuradas...")
+def format_match(match):
+    home = match.get("home_name", "Time A")
+    away = match.get("away_name", "Time B")
+    status = match.get("status", "-")
+    minute = match.get("minute", "-")
+    return f"\ud83c\udf1f {home} x {away}\nStatus: {status.upper()} | Minuto: {minute}"
 
-    url_base = "https://api.football-data-api.com/league-matches"
-    headers = {"Accept": "application/json"}
-    params_comuns = {
-        "key": API_KEY,
-        "date_from": datetime.now().strftime("%Y-%m-%d"),
-        "date_to": datetime.now().strftime("%Y-%m-%d")
-    }
-
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
-        jogos_encontrados = False
-
-        for league_id in LEAGUE_IDS:
-            try:
-                params = {**params_comuns, "league_id": league_id.strip()}
-                async with session.get(url_base, headers=headers, params=params) as resp:
-                    data = await resp.json()
-
-                if data.get("success") and data.get("data"):
-                    for match in data["data"]:
-                        time_a = match.get("homeTeam", "Time A")
-                        time_b = match.get("awayTeam", "Time B")
-                        horario = match.get("match_start")
-                        status = match.get("status", "-")
-
-                        msg = f"\ud83c\udf1f {time_a} x {time_b}\nStatus: {status} | Início: {horario}"
-                        await send_message_safe(msg)
-                        await asyncio.sleep(1)  # evitar flood
-                    jogos_encontrados = True
-                else:
-                    await send_message_safe(f"⚠️ Liga {league_id.strip()}: Nenhum jogo encontrado ou erro na API")
-            except Exception as e:
-                print(f"[ERRO] Erro na liga {league_id}: {e}")
-                await send_message_safe(f"⚠️ Liga {league_id.strip()}: Erro inesperado ao buscar jogos")
-
-        if not jogos_encontrados:
-            await send_message_safe("⚠️ Nenhum jogo agendado para hoje nas ligas selecionadas.")
+def main():
+    bot.send_message(chat_id=CHAT_ID, text="\ud83d\ude80 Bot iniciado!\n\ud83d\udcc5 Buscando jogos das ligas configuradas...")
+    total_matches = 0
+    for league_id in LEAGUE_IDS:
+        matches = fetch_today_matches(league_id)
+        if not matches:
+            bot.send_message(chat_id=CHAT_ID, text=f"⚠️ Liga {league_id}: Nenhum jogo encontrado ou erro na API")
+        else:
+            for match in matches:
+                msg = format_match(match)
+                bot.send_message(chat_id=CHAT_ID, text=msg)
+                total_matches += 1
+    if total_matches == 0:
+        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo agendado para hoje nas ligas selecionadas.")
 
 if __name__ == "__main__":
-    asyncio.run(buscar_jogos())
+    main()
