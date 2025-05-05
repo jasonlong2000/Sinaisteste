@@ -1,77 +1,54 @@
 import os
-import aiohttp
-import asyncio
-from flask import Flask
 import threading
+import asyncio
+import aiohttp
+from datetime import datetime, timedelta
+from flask import Flask
 
-# === CONFIG ===
+# Configurações a partir de variáveis de ambiente
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS")  # Ex: "2012, 2015, 2019"
+LEAGUE_IDS = os.getenv("LEAGUE_IDS")  # Ex: "2012,2015,2023"
 
 if not BOT_TOKEN or not CHAT_ID or not API_KEY:
     raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
 
 league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()]
-if not league_ids:
-    league_ids = ["2012"]  # fallback para Premier League
-
 BASE_URL = "https://api.football-data-api.com"
+
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return "Bot de análise pré-jogo está ativo!"
+    return "Bot está ativo!"
 
-async def send_message(session, text):
+async def send_telegram_message(session, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    params = {"chat_id": CHAT_ID, "text": text}
     try:
-        await session.post(url, data={"chat_id": CHAT_ID, "text": text})
+        await session.get(url, params=params)
     except Exception as e:
-        print("Erro ao enviar mensagem:", e)
+        print(f"Erro ao enviar mensagem: {e}")
 
-async def fetch_matches(session):
-    matches = []
+async def fetch_today_matches(session):
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    all_matches = []
     for lid in league_ids:
-        url = f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}"
+        url = f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}&date_from={today_str}&date_to={today_str}"
         try:
             async with session.get(url) as resp:
                 data = await resp.json()
-                if data.get("success") and data.get("data"):
-                    matches.extend(data["data"])
         except Exception as e:
-            print(f"Erro ao buscar jogos da liga {lid}: {e}")
-    return matches
+            print(f"Erro na liga {lid}: {e}")
+            continue
 
-async def listar_partidas(session):
-    await send_message(session, "🚀 Bot ativado e buscando jogos do dia...")
-    jogos = await fetch_matches(session)
-    if not jogos:
-        await send_message(session, "📍 Nenhum jogo agendado para hoje nas ligas configuradas.")
-        return
+        if data and "data" in data:
+            all_matches.extend(data["data"])
+        elif data and "error" in data:
+            print(f"Erro da API para liga {lid}: {data['error']}")
+    return all_matches
 
-    encontrados = 0
-    for match in jogos:
-        status = match.get("status", "")
-        if status.lower() in ["not_started", "inplay"]:
-            home = match.get("homeTeam") or match.get("home_name") or "Time A"
-            away = match.get("awayTeam") or match.get("away_name") or "Time B"
-            minute = match.get("minute") or "-"
-            msg = f"🏟 {home} x {away}\nStatus: {status.upper()} | Minuto: {minute}"
-            await send_message(session, msg)
-            encontrados += 1
-
-    if encontrados == 0:
-        await send_message(session, "⚠️ Nenhuma partida ativa ou agendada nas ligas selecionadas.")
-
-async def start_bot():
+async def listar_jogos_do_dia():
     async with aiohttp.ClientSession() as session:
-        await listar_partidas(session)
-
-def flask_thread():
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-if __name__ == "__main__":
-    threading.Thread(target=flask_thread, daemon=True).start()
-    asyncio.run(start_bot())
+        await send_telegram_message(session, "
