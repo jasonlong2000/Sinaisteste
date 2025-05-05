@@ -1,52 +1,64 @@
 import os
 import requests
-import datetime
+from datetime import datetime
 from telegram import Bot
 from flask import Flask
-from threading import Thread
 
-# === CONFIGURAÇÕES ===
+# Inicialização
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS", "").split(",")
+FOOTYSTATS_API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS", "2012,2015,2023,2030").split(",")  # IDs das ligas
 
-app = Flask(__name__)
+if not BOT_TOKEN or not CHAT_ID or not FOOTYSTATS_API_KEY:
+    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
+
 bot = Bot(token=BOT_TOKEN)
+app = Flask(__name__)
 
 @app.route("/")
-def home():
-    return "Bot online."
+def index():
+    return "Bot de jogos do dia ativo."
 
-def enviar_mensagem(texto):
-    try:
-        bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="HTML")
-    except Exception as e:
-        print(f"Erro ao enviar mensagem: {e}")
+def get_today_matches():
+    hoje = datetime.utcnow().date().isoformat()
+    jogos_encontrados = []
 
-def buscar_jogos_do_dia():
-    hoje = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3))).date()  # Horário de Brasília
-    encontrou = False
-
-    for league_id in LEAGUE_IDS:
-        url = f"https://api.football-data-api.com/league-matches?key={API_KEY}&league_id={league_id}"
+    for lid in LEAGUE_IDS:
+        url = f"https://api.football-data-api.com/league-matches?key={FOOTYSTATS_API_KEY}&league_id={lid}"
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=15)
             data = response.json()
-            jogos = data.get("data", [])
+            if data.get("success") and "data" in data:
+                for jogo in data["data"]:
+                    if jogo.get("date", "").startswith(hoje):
+                        jogos_encontrados.append(jogo)
         except Exception as e:
-            print(f"Erro na API da liga {league_id}: {e}")
-            continue
+            print(f"Erro na liga {lid}: {e}")
 
-        for jogo in jogos:
-            try:
-                timestamp = jogo.get("date_start")
-                if not timestamp:
-                    continue
-                data_jogo = datetime.datetime.fromtimestamp(timestamp, datetime.timezone(datetime.timedelta(hours=-3))).date()
-                if data_jogo == hoje:
-                    home = jogo.get("home_name", "Time A")
-                    away = jogo.get("away_name", "Time B")
-                    horario = datetime.datetime.fromtimestamp(timestamp, datetime.timezone(datetime.timedelta(hours=-3))).strftime("%H:%M")
-                    status = jogo.get("status", "-").upper()
-                    msg = f"
+    return jogos_encontrados
+
+def formatar_jogo(jogo):
+    home = jogo.get("homeTeam", "Time A")
+    away = jogo.get("awayTeam", "Time B")
+    status = jogo.get("status", "-")
+    horario = jogo.get("time", "-")
+    return f"\ud83c\udf1f {home} x {away}\nStatus: {status.upper()} | Horário: {horario}"
+
+def main():
+    try:
+        bot.send_message(chat_id=CHAT_ID, text="\ud83d\ude80 Bot iniciado com sucesso!\n\ud83d\udcc5 Buscando jogos de hoje...")
+        partidas = get_today_matches()
+
+        if not partidas:
+            bot.send_message(chat_id=CHAT_ID, text="\u26a0\ufe0f Nenhum jogo com data de hoje confirmado.")
+        else:
+            for jogo in partidas:
+                msg = formatar_jogo(jogo)
+                bot.send_message(chat_id=CHAT_ID, text=msg)
+
+    except Exception as e:
+        print(f"Erro geral: {e}")
+
+if __name__ == "__main__":
+    main()
