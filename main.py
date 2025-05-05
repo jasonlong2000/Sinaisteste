@@ -1,54 +1,67 @@
+# main.py
 import os
 import requests
-import datetime
+from datetime import datetime
 from telegram import Bot
+from flask import Flask
+from threading import Thread
+import time
 
-# Configurações do bot e da API
+# Configurações via variáveis de ambiente
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-FOOTYSTATS_API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS", "").split(",")
 
-# Lista de ligas (será substituída dinamicamente)
-LEAGUE_IDS = os.getenv("LEAGUE_IDS", "2012,2027,2015,2030,2016,2031,2013,2032,2014,2033,2022,2023,2026,2034,2035,2036,2037,2038,2039,2040").split(",")
+# Valida variáveis essenciais
+if not BOT_TOKEN or not CHAT_ID or not API_KEY or not LEAGUE_IDS:
+    raise RuntimeError("BOT_TOKEN, CHAT_ID, FOOTYSTATS_API_KEY e LEAGUE_IDS precisam estar definidos.")
 
+# Inicializa o bot e Flask
 bot = Bot(token=BOT_TOKEN)
+app = Flask(__name__)
 
-def send_telegram_message(text):
-    try:
-        bot.send_message(chat_id=CHAT_ID, text=text)
-    except Exception as e:
-        print(f"Erro ao enviar mensagem: {e}")
+@app.route("/")
+def index():
+    return "Bot ativo!"
 
-def buscar_jogos_hoje():
-    hoje = datetime.datetime.now().strftime("%Y-%m-%d")
-    jogos_encontrados = 0
-    for league_id in LEAGUE_IDS:
-        url = f"https://api.football-data-api.com/league-matches?key={FOOTYSTATS_API_KEY}&league_id={league_id}&date_from={hoje}&date_to={hoje}"
+def buscar_jogos_de_hoje():
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    total_jogos = 0
+    for lid in LEAGUE_IDS:
+        url = f"https://api.football-data-api.com/league-matches?key={API_KEY}&league_id={lid}&date={hoje}"
         try:
             response = requests.get(url)
             data = response.json()
-            if data.get("success") and isinstance(data.get("data"), list):
-                jogos = data["data"]
-                if not jogos:
-                    send_telegram_message(f"⚽ Liga {league_id}: 0 jogos encontrados")
-                    continue
+            jogos = data.get("data", [])
 
+            if not jogos:
+                bot.send_message(chat_id=CHAT_ID, text=f"⚽ Liga {lid}: Nenhum jogo encontrado para hoje.")
+            else:
+                total_jogos += len(jogos)
                 for jogo in jogos:
                     home = jogo.get("homeTeam", "Time A")
                     away = jogo.get("awayTeam", "Time B")
                     status = jogo.get("status", "-")
-                    minuto = jogo.get("minute", "-")
-                    msg = f"\U0001F3D0 {home} x {away}\nStatus: {status.upper()} | Minuto: {minuto}"
-                    send_telegram_message(msg)
-                    jogos_encontrados += 1
-            else:
-                print(f"[!] Liga {league_id} sem sucesso na resposta: {data}")
+                    horario = jogo.get("date", "")
+                    msg = f"\U0001F3C0 {home} x {away}\nStatus: {status} | Horário: {horario}"
+                    bot.send_message(chat_id=CHAT_ID, text=msg)
         except Exception as e:
-            print(f"Erro ao buscar jogos da liga {league_id}: {e}")
+            print(f"Erro ao buscar liga {lid}: {e}")
 
-    if jogos_encontrados == 0:
-        send_telegram_message("\u26a0\ufe0f Nenhuma partida ativa ou agendada nas ligas selecionadas.")
+    if total_jogos == 0:
+        bot.send_message(chat_id=CHAT_ID, text="\u26a0 Nenhum jogo agendado para hoje nas ligas selecionadas.")
+    else:
+        bot.send_message(chat_id=CHAT_ID, text=f"\u2705 Total de jogos encontrados: {total_jogos}")
+
+def executar_bot():
+    try:
+        bot.send_message(chat_id=CHAT_ID, text="\U0001F680 Bot iniciado com sucesso e buscando jogos de hoje...")
+        buscar_jogos_de_hoje()
+    except Exception as e:
+        print(f"Erro ao enviar mensagem inicial: {e}")
 
 if __name__ == "__main__":
-    send_telegram_message("\U0001F680 Bot iniciado com sucesso e buscando jogos de hoje...")
-    buscar_jogos_hoje()
+    Thread(target=app.run, kwargs={"host": "0.0.0.0", "port": int(os.getenv("PORT", 5000))}).start()
+    time.sleep(2)
+    executar_bot()
