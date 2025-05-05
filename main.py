@@ -1,71 +1,71 @@
 import os
 import asyncio
 import aiohttp
-import threading
 from flask import Flask
-from datetime import datetime
+from telegram import Bot
+import threading
 
+# === Configurações ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-API_KEY = os.getenv("FOOTYSTATS_API_KEY")
-LEAGUE_IDS = os.getenv("LEAGUE_IDS", "")
+FOOTYSTATS_API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS", "2012")  # Liga padrão Premier League
 
-if not BOT_TOKEN or not CHAT_ID or not API_KEY:
-    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar configurados.")
+if not BOT_TOKEN or not CHAT_ID or not FOOTYSTATS_API_KEY:
+    raise RuntimeError("BOT_TOKEN, CHAT_ID e FOOTYSTATS_API_KEY precisam estar definidos.")
 
 league_ids = [lid.strip() for lid in LEAGUE_IDS.split(",") if lid.strip()]
 BASE_URL = "https://api.football-data-api.com"
-league_urls = [f"{BASE_URL}/league-matches?key={API_KEY}&league_id={lid}" for lid in league_ids]
+league_urls = [f"{BASE_URL}/league-matches?key={FOOTYSTATS_API_KEY}&league_id={lid}" for lid in league_ids]
 
 app = Flask(__name__)
+bot = Bot(token=BOT_TOKEN)
 
 @app.route("/")
-def home():
-    return "✅ Bot ativo!"
+def index():
+    return "Bot está online!"
 
-async def send_message(session, text):
+async def send_telegram(session, text):
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        params = {"chat_id": CHAT_ID, "text": text}
-        await session.get(url, params=params)
+        await session.get(url, params={"chat_id": CHAT_ID, "text": text})
     except Exception as e:
-        print(f"[ERRO Telegram] {e}")
+        print("Erro ao enviar:", e)
 
-async def listar_jogos_do_dia(session):
-    hoje = datetime.now().date()
-    jogos_hoje = []
-
-    for url in league_urls:
-        try:
-            async with session.get(url) as resp:
-                data = await resp.json()
-                partidas = data.get("data", [])
-                for jogo in partidas:
-                    timestamp = jogo.get("date_unix", 0)
-                    data_jogo = datetime.fromtimestamp(timestamp)
-                    if data_jogo.date() == hoje:
-                        hora = data_jogo.strftime('%H:%M')
-                        time_a = jogo.get("homeTeam", jogo.get("home_name", "Time A"))
-                        time_b = jogo.get("awayTeam", jogo.get("away_name", "Time B"))
-                        jogos_hoje.append(f"- {time_a} x {time_b} às {hora}")
-        except Exception as e:
-            print(f"[ERRO ao buscar jogos] {e}")
-
-    if jogos_hoje:
-        mensagem = "📅 *Jogos de hoje:*\n" + "\n".join(jogos_hoje)
-        await send_message(session, mensagem)
-    else:
-        await send_message(session, "📭 Nenhum jogo encontrado para hoje nas ligas configuradas.")
-
-async def executar():
+async def listar_jogos():
     async with aiohttp.ClientSession() as session:
-        await send_message(session, "🚀 Bot ativado e listando jogos do dia...")
-        await listar_jogos_do_dia(session)
+        await send_telegram(session, "🚀 Bot de verificação de partidas ativado!")
+        for url in league_urls:
+            try:
+                async with session.get(url) as resp:
+                    data = await resp.json()
+            except Exception as e:
+                print(f"Erro ao buscar {url}: {e}")
+                continue
 
-def iniciar_flask():
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+            jogos = data.get("data", [])
+            if not jogos:
+                await send_telegram(session, "📭 Nenhum jogo encontrado nessa liga.")
+                continue
+
+            await send_telegram(session, f"📊 {len(jogos)} jogo(s) encontrados:\n")
+
+            for jogo in jogos:
+                casa = jogo.get("homeTeam", "Time A")
+                fora = jogo.get("awayTeam", "Time B")
+                status = jogo.get("status", "indefinido").upper()
+                minuto = jogo.get("minute", "-")
+                texto = f"🏟️ {casa} x {fora}\nStatus: {status} | Minuto: {minuto}"
+                await send_telegram(session, texto)
+                await asyncio.sleep(0.5)
+
+def rodar_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(listar_jogos())
 
 if __name__ == "__main__":
-    threading.Thread(target=iniciar_flask, daemon=True).start()
-    asyncio.run(executar())
+    thread = threading.Thread(target=rodar_bot, daemon=True)
+    thread.start()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
