@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from telegram import Bot
 import time
 
-# Configurações
 API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 CHAT_ID = "-1002675165012"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
@@ -20,13 +19,13 @@ enviados = set()
 def fetch_matches(league_id):
     url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
     try:
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=20)
         response.raise_for_status()
         return response.json().get("data", [])
     except requests.exceptions.Timeout:
-        print(f"⏱️ Timeout ao consultar liga {league_id}")
+        print(f"⏱️ Timeout na liga {league_id}")
     except requests.exceptions.RequestException as e:
-        print(f"Erro ao consultar liga {league_id}: {e}")
+        print(f"❌ Erro ao consultar liga {league_id}: {e}")
     return []
 
 def formatar_jogo(jogo):
@@ -38,16 +37,23 @@ def formatar_jogo(jogo):
     fase = jogo.get("stage_name", "-")
     timestamp = jogo.get("date_unix", 0)
 
-    # Ajuste para horário de Brasília (GMT-3)
-    horario = datetime.utcfromtimestamp(timestamp) - timedelta(hours=3)
-    horario_str = horario.strftime('%H:%M') if timestamp else "?"
+    # Ajuste de horário para GMT-3 (horário de Brasília)
+    try:
+        horario = datetime.utcfromtimestamp(timestamp) - timedelta(hours=3)
+        horario_str = horario.strftime('%H:%M')
+    except:
+        horario_str = "?"
 
     return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minuto} | Horário: {horario_str}"
 
 def main():
-    bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos do dia...")
-    novos = 0
+    try:
+        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos do dia...")
+    except Exception as e:
+        print(f"Erro ao enviar mensagem inicial: {e}")
+        return
 
+    novos = 0
     for league_id in LEAGUE_IDS:
         jogos = fetch_matches(league_id)
         if not jogos:
@@ -55,17 +61,21 @@ def main():
         for jogo in jogos:
             jogo_id = jogo.get("id")
             if jogo_id and jogo_id not in enviados:
-                texto = formatar_jogo(jogo)
                 try:
+                    texto = formatar_jogo(jogo)
                     bot.send_message(chat_id=CHAT_ID, text=texto)
                     enviados.add(jogo_id)
                     novos += 1
-                    time.sleep(1.5)
+                    time.sleep(2.5)  # aumento do intervalo contra flood
                 except Exception as e:
-                    print(f"Erro ao enviar mensagem: {e}")
+                    print(f"Erro ao enviar jogo {jogo_id}: {e}")
+                    time.sleep(5)  # espera adicional em caso de erro
 
     if novos == 0:
-        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo encontrado para hoje nas ligas configuradas.")
+        try:
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo encontrado para hoje nas ligas configuradas.")
+        except Exception as e:
+            print(f"Erro ao enviar mensagem final: {e}")
 
 if __name__ == "__main__":
     main()
