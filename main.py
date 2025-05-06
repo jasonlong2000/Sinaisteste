@@ -79,9 +79,9 @@ def monitorar_ao_vivo():
     enviados = carregar_enviados()
     houve_jogo = False
 
-    print("✅ Verificando partidas ao vivo...")
+    print("✅ Verificando partidas AO VIVO...")
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔄 Bot ativo. Iniciando nova varredura de jogos ao vivo.")
+        bot.send_message(chat_id=CHAT_ID, text="🔄 Bot ativo. Buscando jogos AO VIVO...")
     except Exception as e:
         print(f"Erro ao enviar aviso inicial: {e}")
 
@@ -89,11 +89,13 @@ def monitorar_ao_vivo():
         jogos = fetch_live_matches(league_id)
         for jogo in jogos:
             status = jogo.get("status", "").lower()
-            if status not in ["inplay", "playing", "incomplete"]:
+            minuto = jogo.get("minute", 0)
+
+            # Filtro rigoroso: apenas status "inplay" e minuto válido
+            if status != "inplay" or not isinstance(minuto, int) or minuto <= 0:
                 continue
 
             jogo_id = str(jogo.get("id"))
-            minuto = str(jogo.get("minute", "-"))
             chave = f"{jogo_id}_{minuto}"
 
             if chave in enviados:
@@ -114,11 +116,11 @@ def monitorar_ao_vivo():
 
     if not houve_jogo:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="🔍 Nenhum jogo ao vivo encontrado nesta verificação.")
+            bot.send_message(chat_id=CHAT_ID, text="🔍 Nenhum jogo *ao vivo* encontrado nesta verificação.")
         except Exception as e:
             print(f"Erro ao enviar mensagem de status: {e}")
 
 if __name__ == "__main__":
     while True:
         monitorar_ao_vivo()
-        time.sleep(300)  # Verifica a cada 5 minutos
+        time.sleep(300)
