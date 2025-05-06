@@ -1,57 +1,45 @@
 import requests
 import time
+import os
 from telegram import Bot
+from datetime import datetime
+from flask import Flask
+from threading import Thread
 
-API_KEY = "SUA_API_KEY"
-CHAT_ID = "-1002675165012"
-BOT_TOKEN = "SEU_BOT_TOKEN"
-
-LEAGUE_IDS = [
-    2003, 2004, 2005, 2006, 2007, 2008,
-    2012, 2013, 2014, 2015, 2016, 2017,
-    2022, 2023, 2026, 2031, 2032, 2033,
-    2034, 2035, 2036, 2037, 2038, 2039,
-    2040
-]
+API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+CHAT_ID = os.getenv("CHAT_ID")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+LEAGUE_IDS = os.getenv("LEAGUE_IDS", "2012").split(",")
 
 bot = Bot(token=BOT_TOKEN)
+dispatched_matches = set()
+
+# === FLASK para manter ativo no Render ===
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return "Bot ativo!"
 
 def fetch_today_matches(league_id):
-    url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
+    url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id.strip()}"
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url)
         return response.json().get("data", [])
     except Exception as e:
-        print(f"Erro ao buscar liga {league_id}: {e}")
+        print(f"Erro na liga {league_id}: {e}")
         return []
 
 def format_match(match):
     home = match.get("home_name", "Time A")
     away = match.get("away_name", "Time B")
-    status = match.get("status", "-")
+    status = match.get("status", "-").upper()
     minute = match.get("minute", "-")
-    return f"\u26BD {home} x {away}\nStatus: {status.upper()} | Minuto: {minute}"
+    timestamp = match.get("date_unix", 0)
+    date_str = datetime.fromtimestamp(timestamp).strftime('%d/%m') if timestamp else "?"
+    hour_str = datetime.fromtimestamp(timestamp).strftime('%H:%M') if timestamp else "?"
+    league = match.get("competition_name", "Liga")
+    phase = match.get("stage_name", "Fase desconhecida")
 
-def buscar_jogos():
-    bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Buscando jogos do dia...")
-    total = 0
-    for lid in LEAGUE_IDS:
-        matches = fetch_today_matches(lid)
-        if not matches:
-            bot.send_message(chat_id=CHAT_ID, text=f"⚠️ Liga {lid}: Nenhum jogo encontrado ou erro.")
-        else:
-            for m in matches:
-                msg = format_match(m)
-                try:
-                    bot.send_message(chat_id=CHAT_ID, text=msg)
-                    time.sleep(1.5)
-                    total += 1
-                except Exception as e:
-                    print(f"Erro ao enviar: {e}")
-    if total == 0:
-        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo confirmado para hoje nas ligas configuradas.")
-
-if __name__ == "__main__":
-    while True:
-        buscar_jogos()
-        time.sleep(21600)  # espera 6h
+    return (
+        f"
