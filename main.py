@@ -45,6 +45,12 @@ def formatar_jogo(jogo):
     minuto = jogo.get("minute", "-")
     liga = jogo.get("league_name", "Liga")
     fase = jogo.get("stage_name", "-")
+    forma_home = jogo.get("home_form", "-")
+    forma_away = jogo.get("away_form", "-")
+    gol_marcado_home = jogo.get("home_goals_avg", "-")
+    gol_marcado_away = jogo.get("away_goals_avg", "-")
+    gol_sofrido_home = jogo.get("home_goals_conceded_avg", "-")
+    gol_sofrido_away = jogo.get("away_goals_conceded_avg", "-")
     timestamp = jogo.get("date_unix", 0)
 
     try:
@@ -55,7 +61,16 @@ def formatar_jogo(jogo):
     except:
         data, hora = "?", "?"
 
-    return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minuto} | Data: {data} | Horário: {hora}"
+    return (
+        f"⚽ {home} x {away}\n"
+        f"Liga: {liga} | Fase: {fase}\n"
+        f"Status: {status} | Minuto: {minuto} | Data: {data} | Horário: {hora}\n\n"
+        f"Dados dos Times:\n"
+        f"- Forma {home}: {forma_home}\n"
+        f"- Forma {away}: {forma_away}\n"
+        f"- Gols Marcados (média): {home}: {gol_marcado_home} | {away}: {gol_marcado_away}\n"
+        f"- Gols Sofridos (média): {home}: {gol_sofrido_home} | {away}: {gol_sofrido_away}"
+    )
 
 def executar():
     enviados = carregar_enviados()
