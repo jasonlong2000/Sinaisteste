@@ -45,13 +45,14 @@ def formatar_jogo(jogo):
     minuto = jogo.get("minute", "-")
     liga = jogo.get("league_name", "Liga")
     fase = jogo.get("stage_name", "-")
-    forma_home = jogo.get("home_form", "-")
-    forma_away = jogo.get("away_form", "-")
-    gol_marcado_home = jogo.get("home_goals_avg", "-")
-    gol_marcado_away = jogo.get("away_goals_avg", "-")
-    gol_sofrido_home = jogo.get("home_goals_conceded_avg", "-")
-    gol_sofrido_away = jogo.get("away_goals_conceded_avg", "-")
     timestamp = jogo.get("date_unix", 0)
+
+    forma_home = jogo.get("home_form") or "Indisponível"
+    forma_away = jogo.get("away_form") or "Indisponível"
+    gol_marcado_home = jogo.get("home_goals_avg") or "Indisponível"
+    gol_marcado_away = jogo.get("away_goals_avg") or "Indisponível"
+    gol_sofrido_home = jogo.get("home_goals_conceded_avg") or "Indisponível"
+    gol_sofrido_away = jogo.get("away_goals_conceded_avg") or "Indisponível"
 
     try:
         fuso = pytz.timezone("America/Sao_Paulo")
@@ -62,7 +63,7 @@ def formatar_jogo(jogo):
         data, hora = "?", "?"
 
     return (
-        f"⚽ {home} x {away}\n"
+        f"\u26bd {home} x {away}\n"
         f"Liga: {liga} | Fase: {fase}\n"
         f"Status: {status} | Minuto: {minuto} | Data: {data} | Horário: {hora}\n\n"
         f"Dados dos Times:\n"
@@ -75,7 +76,7 @@ def formatar_jogo(jogo):
 def executar():
     enviados = carregar_enviados()
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos de hoje...")
+        bot.send_message(chat_id=CHAT_ID, text="\ud83d\ude80 Bot iniciado!\n\ud83d\udcc5 Verificando jogos de hoje...")
     except Exception as e:
         print(f"Erro ao enviar mensagem inicial: {e}")
         return
@@ -106,7 +107,7 @@ def executar():
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado hoje nas ligas configuradas.")
+            bot.send_message(chat_id=CHAT_ID, text="\u26a0\ufe0f Nenhum jogo novo encontrado hoje nas ligas configuradas.")
         except Exception as e:
             print(f"Erro ao enviar mensagem final: {e}")
 
