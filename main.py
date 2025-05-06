@@ -6,9 +6,9 @@ from datetime import datetime
 from flask import Flask
 from threading import Thread
 
-API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
-CHAT_ID = "-1002675165012"
-BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
+API_KEY = os.getenv("FOOTYSTATS_API_KEY")
+CHAT_ID = os.getenv("CHAT_ID")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 LEAGUE_IDS = [
     2003, 2004, 2005, 2006, 2007, 2008, 2012, 2013, 2014, 2015, 2016,
@@ -35,20 +35,14 @@ def format_match(match):
     minute = match.get("minute", "-")
     timestamp = match.get("date_unix", 0)
     horario = datetime.fromtimestamp(timestamp).strftime('%d/%m %H:%M') if timestamp else "?"
-    return f"\u26bd {home} x {away}\nStatus: {status} | Minuto: {minute} | Horário: {horario}"
+    return f"⚽ {home} x {away}\nStatus: {status} | Minuto: {minute} | Horário: {horario}"
 
-def main():
-    bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Buscando jogos do dia...")
+def verificar_jogos():
     total = 0
-
     for league_id in LEAGUE_IDS:
         matches = fetch_today_matches(league_id)
-
         if not matches:
-            msg = f"⚠️ Liga {league_id}: Nenhum jogo encontrado ou erro na API"
-            bot.send_message(chat_id=CHAT_ID, text=msg)
             continue
-
         for match in matches:
             match_id = match.get("id")
             status = match.get("status", "").lower()
@@ -57,21 +51,23 @@ def main():
                 bot.send_message(chat_id=CHAT_ID, text=text)
                 dispatched_matches.add(match_id)
                 total += 1
-                time.sleep(1.5)  # evitar flood
-
+                time.sleep(1.5)
     if total == 0:
-        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo ativo ou programado para hoje nas ligas selecionadas.")
+        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado agora.")
+
+def main_loop():
+    bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n🔁 Atualizando a cada 6 horas...")
+    while True:
+        verificar_jogos()
+        time.sleep(21600)  # 6 horas = 21600 segundos
 
 # === Servidor Flask para manter ativo no Render ===
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot ativo!"
-
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    return "Bot está rodando!"
 
 if __name__ == "__main__":
-    Thread(target=run_flask).start()
-    main()
+    Thread(target=app.run, kwargs={"host": "0.0.0.0", "port": int(os.environ.get("PORT", 5000))}, daemon=True).start()
+    main_loop()
