@@ -8,13 +8,16 @@ import os
 API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 CHAT_ID = "-1002675165012"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
-LEAGUE_IDS = [2010, 2007, 2055, 2008, 2012, 2013, 2022, 2015, 2045, 2016,
-              2051, 2070, 2017, 12321, 12322, 12325, 12323, 2003, 2063, 2006,
-              12330, 12328, 12329, 12332, 12327, 12324, 12331, 2005, 2004,
-              2039, 2040, 2020, 12333, 12334, 12335]
 
-bot = Bot(token=BOT_TOKEN)
+LEAGUE_IDS = [
+    2010, 2007, 2055, 2008, 2012, 2013, 2022, 2015, 2045, 2016,
+    2051, 2070, 2017, 12321, 12322, 12325, 12323, 2003, 2063, 2006,
+    12330, 12328, 12329, 12332, 12327, 12324, 12331, 2005, 2004,
+    2039, 2040, 2020, 12333, 12334, 12335
+]
+
 ARQUIVO_ENVIADOS = "sinais_ao_vivo.txt"
+bot = Bot(token=BOT_TOKEN)
 
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
@@ -55,11 +58,11 @@ def gerar_sugestao(dados):
     sugestoes = []
 
     if gols == 0 and chutes >= 8:
-        sugestoes.append("⚽ Entrada: Mais de 0.5 gols")
+        sugestoes.append("⚽ *Entrada sugerida:* Mais de 0.5 gols")
     if escanteios >= 6:
-        sugestoes.append("🚩 Entrada: Mais de 7.5 escanteios")
+        sugestoes.append("🚩 *Entrada sugerida:* Mais de 7.5 escanteios")
     if amarelos >= 3:
-        sugestoes.append("🟨 Entrada: Mais de 4.5 cartões")
+        sugestoes.append("🟨 *Entrada sugerida:* Mais de 4.5 cartões")
 
     return "\n".join(sugestoes) if sugestoes else "Nenhuma entrada recomendada no momento."
 
@@ -72,14 +75,16 @@ def formatar_mensagem(jogo, detalhes):
     estatisticas = gerar_sugestao(detalhes)
 
     return (
-        f"⚠️ *Jogo ao vivo!*\n"
+        f"⚠️ *Jogo ao vivo detectado!*\n"
         f"🏟️ {home} x {away}\n"
-        f"Liga: {liga} | Minuto: {minuto}\n\n"
+        f"Liga: {liga}\n"
+        f"⏱️ Minuto: {minuto}\n\n"
         f"{estatisticas}"
     )
 
 def monitorar_ao_vivo():
     enviados = carregar_enviados()
+    houve_jogo = False
 
     for league_id in LEAGUE_IDS:
         jogos = fetch_live_matches(league_id)
@@ -89,8 +94,8 @@ def monitorar_ao_vivo():
 
             jogo_id = str(jogo.get("id"))
             minuto = str(jogo.get("minute", "-"))
-
             chave = f"{jogo_id}_{minuto}"
+
             if chave in enviados:
                 continue
 
@@ -101,13 +106,20 @@ def monitorar_ao_vivo():
                 bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
                 salvar_enviado(jogo_id, minuto)
                 enviados.add(chave)
+                houve_jogo = True
                 time.sleep(3)
             except Exception as e:
                 print(f"Erro ao enviar jogo {jogo_id}: {e}")
                 time.sleep(5)
 
+    if not houve_jogo:
+        try:
+            bot.send_message(chat_id=CHAT_ID, text="🔍 Nenhum jogo ao vivo encontrado nesta verificação.")
+        except Exception as e:
+            print(f"Erro ao enviar mensagem de status: {e}")
+
 if __name__ == "__main__":
     while True:
-        print("⏱️ Verificando partidas ao vivo...")
+        print("⏱️ Executando verificação de jogos ao vivo...")
         monitorar_ao_vivo()
         time.sleep(300)  # Verifica a cada 5 minutos
