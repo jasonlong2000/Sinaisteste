@@ -9,11 +9,9 @@ API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 CHAT_ID = "-1002675165012"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 
-LEAGUE_IDS = [
-    2010, 2007, 2055, 2008, 2012, 2013, 2022, 2015, 2045, 2016, 2051, 2070,
+LEAGUE_IDS = [2010, 2007, 2055, 2008, 2012, 2013, 2022, 2015, 2045, 2016, 2051, 2070,
     2017, 12321, 12322, 12325, 12323, 2003, 2063, 2006, 12330, 12328, 12329,
-    12332, 12327, 12324, 12331, 2005, 2004, 2039, 2040, 2020, 12333, 12334, 12335
-]
+    12332, 12327, 12324, 12331, 2005, 2004, 2039, 2040, 2020, 12333, 12334, 12335]
 
 ARQUIVO_ENVIADOS = "enviados.txt"
 bot = Bot(token=BOT_TOKEN)
@@ -31,53 +29,65 @@ def salvar_enviado(jogo_id):
 def fetch_matches(league_id):
     url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
     try:
-        response = requests.get(url, timeout=20)
-        response.raise_for_status()
-        return response.json().get("data", [])
+        r = requests.get(url, timeout=15)
+        r.raise_for_status()
+        return r.json().get("data", [])
     except Exception as e:
         print(f"Erro na liga {league_id}: {e}")
         return []
 
-def formatar_jogo(jogo):
+def fetch_match_details(match_id):
+    url = f"https://api.football-data-api.com/match?key={API_KEY}&match_id={match_id}"
+    try:
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        return r.json().get("data", {})
+    except Exception as e:
+        print(f"Erro ao buscar detalhes do jogo {match_id}: {e}")
+        return {}
+
+def formatar_jogo(jogo, detalhes):
     home = jogo.get("home_name", "Time A")
     away = jogo.get("away_name", "Time B")
     status = jogo.get("status", "-").upper()
     minuto = jogo.get("minute", "-")
     liga = jogo.get("league_name", "Liga")
     fase = jogo.get("stage_name", "-")
-
-    # Estatísticas com fallback
-    forma_home = jogo.get("home_form") or "Indisponível"
-    forma_away = jogo.get("away_form") or "Indisponível"
-    gols_marc_home = jogo.get("home_goals_avg") or "Indisponível"
-    gols_marc_away = jogo.get("away_goals_avg") or "Indisponível"
-    gols_sofr_home = jogo.get("home_goals_conceded_avg") or "Indisponível"
-    gols_sofr_away = jogo.get("away_goals_conceded_avg") or "Indisponível"
-
     timestamp = jogo.get("date_unix", 0)
+
     try:
-        fuso = pytz.timezone("America/Sao_Paulo")
-        dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
+        zona = pytz.timezone("America/Sao_Paulo")
+        dt = datetime.utcfromtimestamp(timestamp).astimezone(zona)
         data = dt.strftime('%d/%m')
         hora = dt.strftime('%H:%M')
     except:
         data, hora = "?", "?"
 
+    # Dados detalhados
+    escanteios_a = detalhes.get("team_a_corners", "-")
+    escanteios_b = detalhes.get("team_b_corners", "-")
+    chutes_a = detalhes.get("team_a_shots", "-")
+    chutes_b = detalhes.get("team_b_shots", "-")
+    posse_a = detalhes.get("team_a_possession", "-")
+    posse_b = detalhes.get("team_b_possession", "-")
+    amarelos_a = detalhes.get("team_a_yellow_cards", "-")
+    amarelos_b = detalhes.get("team_b_yellow_cards", "-")
+
     return (
-        f"⚽ *{home} x {away}*\n"
-        f"🏆 Liga: *{liga}* | 🧾 Fase: {fase}\n"
-        f"⏱️ Status: {status} | Minuto: {minuto} | 📅 Data: {data} | 🕒 Horário: {hora}\n\n"
-        f"📊 *Dados dos Times:*\n"
-        f"🔹 Forma {home}: {forma_home}\n"
-        f"🔹 Forma {away}: {forma_away}\n"
-        f"⚽ Gols Marcados (média): {home}: {gols_marc_home} | {away}: {gols_marc_away}\n"
-        f"🛡️ Gols Sofridos (média): {home}: {gols_sofr_home} | {away}: {gols_sofr_away}"
+        f"⚽ {home} x {away}\n"
+        f"Liga: {liga} | Fase: {fase}\n"
+        f"Status: {status} | Minuto: {minuto} | Data: {data} | Horário: {hora}\n\n"
+        f"📊 Estatísticas:\n"
+        f"- Escanteios: {home}: {escanteios_a} | {away}: {escanteios_b}\n"
+        f"- Chutes: {home}: {chutes_a} | {away}: {chutes_b}\n"
+        f"- Posse de bola: {home}: {posse_a}% | {away}: {posse_b}%\n"
+        f"- Cartões Amarelos: {home}: {amarelos_a} | {away}: {amarelos_b}"
     )
 
 def executar():
     enviados = carregar_enviados()
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos de hoje...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos de hoje...")
     except Exception as e:
         print(f"Erro ao enviar mensagem inicial: {e}")
         return
@@ -95,9 +105,11 @@ def executar():
             if data_jogo != hoje or jogo_id in enviados:
                 continue
 
+            detalhes = fetch_match_details(jogo_id)
+            texto = formatar_jogo(jogo, detalhes)
+
             try:
-                texto = formatar_jogo(jogo)
-                bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown")
+                bot.send_message(chat_id=CHAT_ID, text=texto)
                 salvar_enviado(jogo_id)
                 enviados.add(jogo_id)
                 novos += 1
