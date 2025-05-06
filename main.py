@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime
 from telegram import Bot
+import time
 
 # Configurações
 API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
@@ -19,11 +20,14 @@ enviados = set()
 def fetch_matches(league_id):
     url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
         return response.json().get("data", [])
-    except Exception as e:
-        print(f"Erro na API (liga {league_id}): {e}")
-        return []
+    except requests.exceptions.Timeout:
+        print(f"⏱️ Timeout ao consultar liga {league_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao consultar liga {league_id}: {e}")
+    return []
 
 def formatar_jogo(jogo):
     home = jogo.get("home_name", "Time A")
@@ -46,11 +50,15 @@ def main():
             continue
         for jogo in jogos:
             jogo_id = jogo.get("id")
-            if jogo_id not in enviados:
+            if jogo_id and jogo_id not in enviados:
                 texto = formatar_jogo(jogo)
-                bot.send_message(chat_id=CHAT_ID, text=texto)
-                enviados.add(jogo_id)
-                novos += 1
+                try:
+                    bot.send_message(chat_id=CHAT_ID, text=texto)
+                    enviados.add(jogo_id)
+                    novos += 1
+                    time.sleep(1.5)  # prevenção contra flood
+                except Exception as e:
+                    print(f"Erro ao enviar mensagem: {e}")
 
     if novos == 0:
         bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo encontrado para hoje nas ligas configuradas.")
