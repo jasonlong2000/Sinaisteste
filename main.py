@@ -8,13 +8,21 @@ from telegram import Bot
 API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 CHAT_ID = "-1002675165012"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
-LEAGUE_ID = 12321  # Champions League
+
+LEAGUE_IDS = {
+    12321: "Champions League",
+    2033: "Premier League",
+    2022: "Brasileirão",
+    2034: "Serie A",
+    2040: "La Liga"
+}
+
 DATA_FILE = "enviados.json"
 INTERVALO = 6 * 60 * 60  # 6 horas
 
 bot = Bot(token=BOT_TOKEN)
 
-# Carregar IDs enviados anteriormente
+# Carregar jogos já enviados
 try:
     with open(DATA_FILE, "r") as f:
         enviados = set(json.load(f))
@@ -25,52 +33,13 @@ def salvar_enviados():
     with open(DATA_FILE, "w") as f:
         json.dump(list(enviados), f)
 
-def fetch_matches():
-    url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={LEAGUE_ID}"
+def fetch_matches(league_id):
+    url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
     try:
         response = requests.get(url)
         return response.json().get("data", [])
     except Exception as e:
-        print(f"Erro na API: {e}")
+        print(f"Erro ao buscar dados da liga {league_id}: {e}")
         return []
 
 def formatar_jogo(jogo):
-    home = jogo.get("home_name", "Time A")
-    away = jogo.get("away_name", "Time B")
-    status = jogo.get("status", "-").upper()
-    minuto = jogo.get("minute", "-")
-    liga = jogo.get("league_name", "Liga")
-    fase = jogo.get("stage_name", "-")
-    timestamp = jogo.get("date_unix", 0)
-    horario = datetime.fromtimestamp(timestamp).strftime('%H:%M') if timestamp else "?"
-
-    return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minuto} | Horário: {horario}"
-
-def verificar_novos():
-    bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos da Champions League de hoje...")
-
-    jogos = fetch_matches()
-    novos = 0
-
-    for jogo in jogos:
-        jogo_id = jogo.get("id")
-        if jogo_id and jogo_id not in enviados:
-            texto = formatar_jogo(jogo)
-            bot.send_message(chat_id=CHAT_ID, text=texto)
-            enviados.add(jogo_id)
-            novos += 1
-            time.sleep(1.5)  # evita flood
-
-    salvar_enviados()
-
-    if novos == 0:
-        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado agora.")
-
-def main():
-    while True:
-        verificar_novos()
-        print(f"Aguardando {INTERVALO/3600} horas...")
-        time.sleep(INTERVALO)
-
-if __name__ == "__main__":
-    main()
