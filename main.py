@@ -49,37 +49,30 @@ def fetch_match_details(match_id):
         print(f"Erro ao buscar detalhes do jogo {match_id}: {e}")
         return {}
 
-def gerar_sugestao(dados):
-    escanteios = (dados.get("team_a_corners", 0) + dados.get("team_b_corners", 0))
-    chutes = (dados.get("team_a_shots", 0) + dados.get("team_b_shots", 0))
-    gols = (dados.get("team_a_goal_count", 0) + dados.get("team_b_goal_count", 0))
-    amarelos = (dados.get("team_a_yellow_cards", 0) + dados.get("team_b_yellow_cards", 0))
-
-    sugestoes = []
-
-    if gols == 0 and chutes >= 8:
-        sugestoes.append("⚽ *Entrada sugerida:* Mais de 0.5 gols")
-    if escanteios >= 6:
-        sugestoes.append("🚩 *Entrada sugerida:* Mais de 7.5 escanteios")
-    if amarelos >= 3:
-        sugestoes.append("🟨 *Entrada sugerida:* Mais de 4.5 cartões")
-
-    return "\n".join(sugestoes) if sugestoes else "Nenhuma entrada recomendada no momento."
-
 def formatar_mensagem(jogo, detalhes):
     home = jogo.get("home_name", "Time A")
     away = jogo.get("away_name", "Time B")
     minuto = jogo.get("minute", "-")
     liga = jogo.get("league_name", "Liga")
 
-    estatisticas = gerar_sugestao(detalhes)
+    escanteios_a = detalhes.get("team_a_corners", "-")
+    escanteios_b = detalhes.get("team_b_corners", "-")
+    chutes_a = detalhes.get("team_a_shots", "-")
+    chutes_b = detalhes.get("team_b_shots", "-")
+    posse_a = detalhes.get("team_a_possession", "-")
+    posse_b = detalhes.get("team_b_possession", "-")
+    amarelos_a = detalhes.get("team_a_yellow_cards", "-")
+    amarelos_b = detalhes.get("team_b_yellow_cards", "-")
 
     return (
-        f"⚠️ *Jogo ao vivo detectado!*\n"
+        f"⚽ *Jogo ao vivo!*\n"
         f"🏟️ {home} x {away}\n"
-        f"Liga: {liga}\n"
-        f"⏱️ Minuto: {minuto}\n\n"
-        f"{estatisticas}"
+        f"Liga: {liga} | ⏱️ Minuto: {minuto}\n\n"
+        f"📊 Estatísticas:\n"
+        f"- Escanteios: {home}: {escanteios_a} | {away}: {escanteios_b}\n"
+        f"- Chutes: {home}: {chutes_a} | {away}: {chutes_b}\n"
+        f"- Posse de bola: {home}: {posse_a}% | {away}: {posse_b}%\n"
+        f"- Cartões Amarelos: {home}: {amarelos_a} | {away}: {amarelos_b}"
     )
 
 def monitorar_ao_vivo():
@@ -120,6 +113,6 @@ def monitorar_ao_vivo():
 
 if __name__ == "__main__":
     while True:
-        print("⏱️ Executando verificação de jogos ao vivo...")
+        print("⏱️ Verificando partidas ao vivo...")
         monitorar_ao_vivo()
         time.sleep(300)  # Verifica a cada 5 minutos
