@@ -1,7 +1,6 @@
 import requests
 from datetime import datetime
 from telegram import Bot
-import pytz
 import time
 import os
 
@@ -11,9 +10,7 @@ BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
 ARQUIVO_ENVIADOS = "ao_vivo_enviados.txt"
 
-LEAGUE_IDS = [
-    12321  # Champions League — você pode adicionar mais IDs aqui
-]
+LEAGUE_IDS = [12321]  # Champions League
 
 bot = Bot(token=BOT_TOKEN)
 
@@ -62,7 +59,7 @@ def formatar_mensagem(jogo, detalhes):
     amarelos_b = detalhes.get("team_b_yellow_cards", "-")
 
     return (
-        f"⚽ *Jogo ao vivo!*\n"
+        f"⚽ *Jogo ao vivo detectado!*\n"
         f"🏟️ {home} x {away}\n"
         f"Liga: {liga} | ⏱️ Minuto: {minuto}\n\n"
         f"📊 *Estatísticas:*\n"
@@ -78,17 +75,17 @@ def monitorar():
 
     print("⏱️ Buscando partidas AO VIVO...")
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔄 Bot ativo. Verificando jogos *ao vivo*...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔄 Buscando jogos *ao vivo* da Champions League...", parse_mode="Markdown")
     except: pass
 
     for league_id in LEAGUE_IDS:
         jogos = fetch_matches(league_id)
         for jogo in jogos:
-            if jogo.get("status") != "inplay":
+            minuto = jogo.get("minute")
+            if not isinstance(minuto, int) or minuto <= 0:
                 continue
 
             jogo_id = str(jogo.get("id"))
-            minuto = str(jogo.get("minute", "-"))
             chave = f"{jogo_id}_{minuto}"
 
             if chave in enviados:
@@ -108,7 +105,7 @@ def monitorar():
 
     if not houve_jogo:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="🔍 Nenhum jogo *ao vivo* encontrado nesta verificação.", parse_mode="Markdown")
+            bot.send_message(chat_id=CHAT_ID, text="❌ Nenhum jogo *ao vivo* encontrado na Champions League.", parse_mode="Markdown")
         except: pass
 
 if __name__ == "__main__":
