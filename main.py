@@ -8,6 +8,7 @@ import os
 API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 CHAT_ID = "-1002675165012"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
+
 LEAGUE_IDS = [
     2010, 2007, 2055, 2008, 2012, 2013, 2022, 2015, 2045, 2016, 2051, 2070,
     2017, 12321, 12322, 12325, 12323, 2003, 2063, 2006, 12330, 12328, 12329,
@@ -27,16 +28,14 @@ def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
 
-enviados = carregar_enviados()
-
 def fetch_matches(league_id):
     url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
     try:
-        response = requests.get(url, timeout=15)
+        response = requests.get(url, timeout=20)
         response.raise_for_status()
         return response.json().get("data", [])
     except Exception as e:
-        print(f"Erro ao consultar liga {league_id}: {e}")
+        print(f"Erro na liga {league_id}: {e}")
         return []
 
 def formatar_jogo(jogo):
@@ -49,8 +48,8 @@ def formatar_jogo(jogo):
     timestamp = jogo.get("date_unix", 0)
 
     try:
-        zona = pytz.timezone("America/Sao_Paulo")
-        dt = datetime.utcfromtimestamp(timestamp).astimezone(zona)
+        fuso = pytz.timezone("America/Sao_Paulo")
+        dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
         data = dt.strftime('%d/%m')
         hora = dt.strftime('%H:%M')
     except:
@@ -58,7 +57,8 @@ def formatar_jogo(jogo):
 
     return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minuto} | Data: {data} | Horário: {hora}"
 
-def main():
+def executar():
+    enviados = carregar_enviados()
     try:
         bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos de hoje...")
     except Exception as e:
@@ -81,8 +81,8 @@ def main():
             try:
                 texto = formatar_jogo(jogo)
                 bot.send_message(chat_id=CHAT_ID, text=texto)
-                enviados.add(jogo_id)
                 salvar_enviado(jogo_id)
+                enviados.add(jogo_id)
                 novos += 1
                 time.sleep(2)
             except Exception as e:
@@ -96,4 +96,6 @@ def main():
             print(f"Erro ao enviar mensagem final: {e}")
 
 if __name__ == "__main__":
-    main()
+    while True:
+        executar()
+        time.sleep(21600)  # 6 horas
