@@ -8,7 +8,7 @@ from telegram import Bot
 API_KEY = os.getenv("API_KEY")
 CHAT_ID = os.getenv("CHAT_ID")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-LEAGUE_ID = "12321"  # ID da Champions League
+LEAGUE_ID = "12321"  # Champions League
 
 DISPATCHED_FILE = "sent_matches.json"
 bot = Bot(token=BOT_TOKEN)
@@ -16,12 +16,12 @@ bot = Bot(token=BOT_TOKEN)
 def carregar_enviados():
     if os.path.exists(DISPATCHED_FILE):
         with open(DISPATCHED_FILE, "r") as f:
-            return set(json.load(f))
-    return set()
+            return json.load(f)
+    return {}
 
 def salvar_enviados(enviados):
     with open(DISPATCHED_FILE, "w") as f:
-        json.dump(list(enviados), f)
+        json.dump(enviados, f)
 
 def fetch_matches():
     url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={LEAGUE_ID}"
@@ -48,17 +48,21 @@ def formatar_partida(jogo):
     return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minute} | Horário: {horario}"
 
 def main():
+    hoje = datetime.now().strftime("%Y-%m-%d")
     enviados = carregar_enviados()
+    if hoje not in enviados:
+        enviados[hoje] = []
+
     bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos da Champions League de hoje...")
 
     novos = 0
     for match in fetch_matches():
         match_id = str(match.get("id"))
-        if match_id not in enviados and match.get("status") in ["notstarted", "inplay"]:
+        if match_id not in enviados[hoje] and match.get("status") in ["notstarted", "inplay"]:
             msg = formatar_partida(match)
             try:
                 bot.send_message(chat_id=CHAT_ID, text=msg)
-                enviados.add(match_id)
+                enviados[hoje].append(match_id)
                 novos += 1
                 time.sleep(1.2)
             except Exception as e:
