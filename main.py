@@ -1,16 +1,15 @@
 import requests
-from datetime import datetime
 from telegram import Bot
 import time
 import os
 
-# Configurações
 API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
-ARQUIVO_ENVIADOS = "ao_vivo_enviados.txt"
+ARQUIVO_ENVIADOS = "sinais_ao_vivo.txt"
 
-LEAGUE_IDS = [12321]  # Champions League
+# Champions League somente (ajuste conforme desejar)
+LEAGUE_IDS = [12321]
 
 bot = Bot(token=BOT_TOKEN)
 
@@ -27,19 +26,21 @@ def salvar_enviado(chave):
 def fetch_matches(league_id):
     url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
     try:
-        r = requests.get(url, timeout=15)
-        r.raise_for_status()
-        return r.json().get("data", [])
-    except:
+        res = requests.get(url, timeout=15)
+        res.raise_for_status()
+        return res.json().get("data", [])
+    except Exception as e:
+        print(f"Erro ao buscar jogos da liga {league_id}: {e}")
         return []
 
 def fetch_details(match_id):
     url = f"https://api.football-data-api.com/match?key={API_KEY}&match_id={match_id}"
     try:
-        r = requests.get(url, timeout=15)
-        r.raise_for_status()
-        return r.json().get("data", {})
-    except:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        return res.json().get("data", {})
+    except Exception as e:
+        print(f"Erro ao buscar detalhes do jogo {match_id}: {e}")
         return {}
 
 def formatar_mensagem(jogo, detalhes):
@@ -48,7 +49,6 @@ def formatar_mensagem(jogo, detalhes):
     minuto = jogo.get("minute", "-")
     liga = jogo.get("league_name", "Liga")
 
-    # Estatísticas
     escanteios_a = detalhes.get("team_a_corners", "-")
     escanteios_b = detalhes.get("team_b_corners", "-")
     chutes_a = detalhes.get("team_a_shots", "-")
@@ -59,7 +59,7 @@ def formatar_mensagem(jogo, detalhes):
     amarelos_b = detalhes.get("team_b_yellow_cards", "-")
 
     return (
-        f"⚽ *Jogo ao vivo detectado!*\n"
+        f"⚽ *Jogo ao vivo!*\n"
         f"🏟️ {home} x {away}\n"
         f"Liga: {liga} | ⏱️ Minuto: {minuto}\n\n"
         f"📊 *Estatísticas:*\n"
@@ -73,9 +73,9 @@ def monitorar():
     enviados = carregar_enviados()
     houve_jogo = False
 
-    print("⏱️ Buscando partidas AO VIVO...")
+    print("🔄 Buscando jogos AO VIVO da Champions League...")
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔄 Buscando jogos *ao vivo* da Champions League...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔄 Bot ativo. Buscando jogos ao vivo da Champions League...", parse_mode="Markdown")
     except: pass
 
     for league_id in LEAGUE_IDS:
@@ -100,7 +100,8 @@ def monitorar():
                 enviados.add(chave)
                 houve_jogo = True
                 time.sleep(2)
-            except:
+            except Exception as e:
+                print(f"Erro ao enviar jogo {jogo_id}: {e}")
                 time.sleep(5)
 
     if not houve_jogo:
