@@ -45,16 +45,16 @@ def formatar_jogo(jogo):
     minuto = jogo.get("minute", "-")
     liga = jogo.get("league_name", "Liga")
     fase = jogo.get("stage_name", "-")
-    timestamp = jogo.get("date_unix", 0)
 
-    # Dados estatísticos
+    # Estatísticas com fallback
     forma_home = jogo.get("home_form") or "Indisponível"
     forma_away = jogo.get("away_form") or "Indisponível"
-    gol_marcado_home = jogo.get("home_goals_avg") or "Indisponível"
-    gol_marcado_away = jogo.get("away_goals_avg") or "Indisponível"
-    gol_sofrido_home = jogo.get("home_goals_conceded_avg") or "Indisponível"
-    gol_sofrido_away = jogo.get("away_goals_conceded_avg") or "Indisponível"
+    gols_marc_home = jogo.get("home_goals_avg") or "Indisponível"
+    gols_marc_away = jogo.get("away_goals_avg") or "Indisponível"
+    gols_sofr_home = jogo.get("home_goals_conceded_avg") or "Indisponível"
+    gols_sofr_away = jogo.get("away_goals_conceded_avg") or "Indisponível"
 
+    timestamp = jogo.get("date_unix", 0)
     try:
         fuso = pytz.timezone("America/Sao_Paulo")
         dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
@@ -64,20 +64,20 @@ def formatar_jogo(jogo):
         data, hora = "?", "?"
 
     return (
-        f"⚽ {home} x {away}\n"
-        f"Liga: {liga} | Fase: {fase}\n"
-        f"Status: {status} | Minuto: {minuto} | Data: {data} | Horário: {hora}\n\n"
-        f"Dados dos Times:\n"
-        f"- Forma {home}: {forma_home}\n"
-        f"- Forma {away}: {forma_away}\n"
-        f"- Gols Marcados (média): {home}: {gol_marcado_home} | {away}: {gol_marcado_away}\n"
-        f"- Gols Sofridos (média): {home}: {gol_sofrido_home} | {away}: {gol_sofrido_away}"
+        f"⚽ *{home} x {away}*\n"
+        f"🏆 Liga: *{liga}* | 🧾 Fase: {fase}\n"
+        f"⏱️ Status: {status} | Minuto: {minuto} | 📅 Data: {data} | 🕒 Horário: {hora}\n\n"
+        f"📊 *Dados dos Times:*\n"
+        f"🔹 Forma {home}: {forma_home}\n"
+        f"🔹 Forma {away}: {forma_away}\n"
+        f"⚽ Gols Marcados (média): {home}: {gols_marc_home} | {away}: {gols_marc_away}\n"
+        f"🛡️ Gols Sofridos (média): {home}: {gols_sofr_home} | {away}: {gols_sofr_away}"
     )
 
 def executar():
     enviados = carregar_enviados()
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos de hoje...")
+        bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos de hoje...", parse_mode="Markdown")
     except Exception as e:
         print(f"Erro ao enviar mensagem inicial: {e}")
         return
@@ -97,7 +97,7 @@ def executar():
 
             try:
                 texto = formatar_jogo(jogo)
-                bot.send_message(chat_id=CHAT_ID, text=texto)
+                bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown")
                 salvar_enviado(jogo_id)
                 enviados.add(jogo_id)
                 novos += 1
