@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Bot
 import time
 
@@ -37,8 +37,12 @@ def formatar_jogo(jogo):
     liga = jogo.get("league_name", "Liga")
     fase = jogo.get("stage_name", "-")
     timestamp = jogo.get("date_unix", 0)
-    horario = datetime.fromtimestamp(timestamp).strftime('%H:%M') if timestamp else "?"
-    return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minuto} | Horário: {horario}"
+
+    # Ajuste para horário de Brasília (GMT-3)
+    horario = datetime.utcfromtimestamp(timestamp) - timedelta(hours=3)
+    horario_str = horario.strftime('%H:%M') if timestamp else "?"
+
+    return f"⚽ {home} x {away}\nLiga: {liga} | Fase: {fase}\nStatus: {status} | Minuto: {minuto} | Horário: {horario_str}"
 
 def main():
     bot.send_message(chat_id=CHAT_ID, text="🚀 Bot iniciado!\n📅 Verificando jogos do dia...")
@@ -56,7 +60,7 @@ def main():
                     bot.send_message(chat_id=CHAT_ID, text=texto)
                     enviados.add(jogo_id)
                     novos += 1
-                    time.sleep(1.5)  # prevenção contra flood
+                    time.sleep(1.5)
                 except Exception as e:
                     print(f"Erro ao enviar mensagem: {e}")
 
