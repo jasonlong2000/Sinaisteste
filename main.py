@@ -1,120 +1,98 @@
 import requests
 from datetime import datetime
-from telegram import Bot
-import pytz
-import time
-import os
+from zoneinfo import ZoneInfo
 
+# Configurações
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
-BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
-CHAT_ID = "-1002675165012"
-ARQUIVO_ENVIADOS = "pre_jogos_filtrados.txt"
+API_URL = "https://v3.football.api-sports.io/fixtures"
 
-bot = Bot(token=BOT_TOKEN)
-
-# Ligas permitidas no formato: "País - Nome da Liga"
+# Ligas permitidas (País + Nome da Liga)
 LIGAS_PERMITIDAS = [
-    "Belgium - Pro League", "Brazil - Serie A", "Brazil - Copa do Brasil",
-    "Brazil - Serie B", "Brazil - Paulista", "Brazil - Gaucho 1",
-    "Bulgaria - First League", "England - Premier League", "England - Community Shield",
-    "England - Championship", "England - League Cup", "England - Premier League Summer Series",
-    "England - EFL League One", "Europe - UEFA Champions League", "Europe - UEFA Europa League",
-    "Europe - UEFA Super Cup", "Europe - UEFA Europa Conference League", "France - Ligue 1",
-    "France - Coupe de la Ligue", "Germany - Bundesliga", "International - UEFA Euro Championship",
-    "International - FIFA Confederations Cup", "International - UEFA Euro Qualifiers",
-    "International - UEFA Nations League", "International - FIFA Club World Cup",
-    "International - Copa America", "International - Olympics", "Italy - Serie A",
-    "Spain - La Liga", "Spain - Copa del Rey", "Spain - Supercopa de Espana", "USA - MLS",
-    "South America - Copa Libertadores", "South America - Copa Sudamericana",
-    "South America - CONMEBOL Recopa Sudamericana"
+    {"country": "Belgium", "name": "Pro League"},
+    {"country": "Brazil",  "name": "Serie A"},
+    {"country": "Brazil",  "name": "Copa do Brasil"},
+    {"country": "Brazil",  "name": "Serie B"},
+    {"country": "Brazil",  "name": "Paulista"},
+    {"country": "Brazil",  "name": "Gaucho 1"},
+    {"country": "Bulgaria","name": "First League"},
+    {"country": "England", "name": "Premier League"},
+    {"country": "England", "name": "Community Shield"},
+    {"country": "England", "name": "Championship"},
+    {"country": "England", "name": "League Cup"},
+    {"country": "England", "name": "Premier League Summer Series"},
+    {"country": "England", "name": "EFL League One"},
+    {"country": "Europe",  "name": "UEFA Champions League"},
+    {"country": "Europe",  "name": "UEFA Europa League"},
+    {"country": "Europe",  "name": "UEFA Super Cup"},
+    {"country": "Europe",  "name": "UEFA Europa Conference League"},
+    {"country": "France",  "name": "Ligue 1"},
+    {"country": "France",  "name": "Coupe de la Ligue"},
+    {"country": "Germany", "name": "Bundesliga"},
+    {"country": "International", "name": "UEFA Euro Championship"},
+    {"country": "International", "name": "FIFA Confederations Cup"},
+    {"country": "International", "name": "UEFA Euro Qualifiers"},
+    {"country": "International", "name": "UEFA Nations League"},
+    {"country": "International", "name": "FIFA Club World Cup"},
+    {"country": "International", "name": "Copa America"},
+    {"country": "International", "name": "Olympics"},
+    {"country": "Italy",   "name": "Serie A"},
+    {"country": "Spain",   "name": "La Liga"},
+    {"country": "Spain",   "name": "Copa del Rey"},
+    {"country": "Spain",   "name": "Supercopa de Espana"},
+    {"country": "USA",     "name": "MLS"},
+    {"country": "South America", "name": "Copa Libertadores"},
+    {"country": "South America", "name": "Copa Sudamericana"},
+    {"country": "South America", "name": "CONMEBOL Recopa Sudamericana"}
 ]
 
-def carregar_enviados():
-    if os.path.exists(ARQUIVO_ENVIADOS):
-        with open(ARQUIVO_ENVIADOS, "r") as f:
-            return set(line.strip() for line in f)
-    return set()
-
-def salvar_enviado(jogo_id):
-    with open(ARQUIVO_ENVIADOS, "a") as f:
-        f.write(f"{jogo_id}\n")
-
-def buscar_jogos():
-    hoje = datetime.utcnow().strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
-    headers = {"x-apisports-key": API_KEY}
+def buscar_jogos_do_dia():
+    hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    params = {
+        "date": hoje,
+        "status": "NS",  # Only not started games
+        "timezone": "America/Sao_Paulo"
+    }
+    headers = {
+        "x-apisports-key": API_KEY
+    }
 
     try:
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        return r.json().get("response", [])
+        res = requests.get(API_URL, params=params, headers=headers, timeout=15)
+        res.raise_for_status()
+        return res.json().get("response", [])
     except Exception as e:
         print(f"Erro ao buscar jogos: {e}")
         return []
 
-def formatar_jogo(jogo):
-    fixture = jogo["fixture"]
-    teams = jogo["teams"]
-    league = jogo["league"]
+def exibir_jogos(jogos):
+    if not jogos:
+        print("❌ Nenhum jogo encontrado para hoje.")
+        return
 
-    home = teams["home"]["name"]
-    away = teams["away"]["name"]
-    liga = league["name"]
-    pais = league["country"]
-    local = fixture["venue"]["name"]
-    timestamp = fixture["timestamp"]
-
-    try:
-        fuso = pytz.timezone("America/Sao_Paulo")
-        dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
-        data = dt.strftime("%d/%m")
-        hora = dt.strftime("%H:%M")
-    except:
-        data, hora = "?", "?"
-
-    return (
-        f"⚽ {home} x {away}\n"
-        f"🌍 {liga} ({pais})\n"
-        f"🏟️ Local: {local}\n"
-        f"📅 Data: {data} | 🕒 Horário: {hora}\n"
-        f"📌 Status: Not Started"
-    )
-
-def verificar_jogos():
-    enviados = carregar_enviados()
-    jogos = buscar_jogos()
-    novos = 0
-
-    try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *pré-jogos* das ligas permitidas...", parse_mode="Markdown")
-    except: pass
+    print("🟢 PRÉ-JOGOS DO DIA (Somente ligas permitidas):\n")
 
     for jogo in jogos:
-        fixture = jogo["fixture"]
         league = jogo["league"]
-        jogo_id = str(fixture["id"])
-        status = fixture["status"]["short"]
-        nome_liga = f"{league['country']} - {league['name']}"
+        fixture = jogo["fixture"]
+        teams = jogo["teams"]
 
-        if status != "NS" or jogo_id in enviados or nome_liga not in LIGAS_PERMITIDAS:
+        liga_pais = {"country": league["country"], "name": league["name"]}
+        if liga_pais not in LIGAS_PERMITIDAS:
             continue
 
-        try:
-            mensagem = formatar_jogo(jogo)
-            bot.send_message(chat_id=CHAT_ID, text=mensagem)
-            salvar_enviado(jogo_id)
-            novos += 1
-            time.sleep(2)
-        except Exception as e:
-            print(f"Erro ao enviar jogo {jogo_id}: {e}")
-            time.sleep(5)
+        home = teams["home"]["name"]
+        away = teams["away"]["name"]
+        estadio = fixture["venue"]["name"]
+        data_hora_str = fixture["date"]
 
-    if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado nas ligas selecionadas.", parse_mode="Markdown")
-        except: pass
+            data_hora = datetime.fromisoformat(data_hora_str)
+            data_fmt = data_hora.strftime("%d/%m/%Y %H:%M")
+        except:
+            data_fmt = data_hora_str
+
+        print(f"{league['country']} - {league['name']}: {home} x {away} - {data_fmt} | Estádio: {estadio}")
 
 if __name__ == "__main__":
-    while True:
-        verificar_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas
+    jogos_do_dia = buscar_jogos_do_dia()
+    exibir_jogos(jogos_do_dia)
