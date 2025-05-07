@@ -5,7 +5,6 @@ import pytz
 import time
 import os
 
-# Configurações
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
@@ -13,18 +12,21 @@ ARQUIVO_ENVIADOS = "pre_jogos_filtrados.txt"
 
 bot = Bot(token=BOT_TOKEN)
 
-# Lista com apenas os nomes das ligas
+# Ligas permitidas no formato: "País - Nome da Liga"
 LIGAS_PERMITIDAS = [
-    "Pro League", "Serie A", "Copa do Brasil", "Serie B", "Paulista",
-    "Gaucho 1", "First League", "Premier League", "Community Shield",
-    "Championship", "League Cup", "Premier League Summer Series",
-    "EFL League One", "UEFA Champions League", "UEFA Europa League",
-    "UEFA Super Cup", "UEFA Europa Conference League", "Ligue 1",
-    "Coupe de la Ligue", "Bundesliga", "UEFA Euro Championship",
-    "FIFA Confederations Cup", "UEFA Euro Qualifiers", "UEFA Nations League",
-    "FIFA Club World Cup", "Copa America", "Olympics", "Serie A",
-    "La Liga", "Copa del Rey", "Supercopa de Espana", "MLS",
-    "Copa Libertadores", "Copa Sudamericana", "Recopa Sudamericana"
+    "Belgium - Pro League", "Brazil - Serie A", "Brazil - Copa do Brasil",
+    "Brazil - Serie B", "Brazil - Paulista", "Brazil - Gaucho 1",
+    "Bulgaria - First League", "England - Premier League", "England - Community Shield",
+    "England - Championship", "England - League Cup", "England - Premier League Summer Series",
+    "England - EFL League One", "Europe - UEFA Champions League", "Europe - UEFA Europa League",
+    "Europe - UEFA Super Cup", "Europe - UEFA Europa Conference League", "France - Ligue 1",
+    "France - Coupe de la Ligue", "Germany - Bundesliga", "International - UEFA Euro Championship",
+    "International - FIFA Confederations Cup", "International - UEFA Euro Qualifiers",
+    "International - UEFA Nations League", "International - FIFA Club World Cup",
+    "International - Copa America", "International - Olympics", "Italy - Serie A",
+    "Spain - La Liga", "Spain - Copa del Rey", "Spain - Supercopa de Espana", "USA - MLS",
+    "South America - Copa Libertadores", "South America - Copa Sudamericana",
+    "South America - CONMEBOL Recopa Sudamericana"
 ]
 
 def carregar_enviados():
@@ -84,7 +86,7 @@ def verificar_jogos():
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *pré-jogos* das ligas selecionadas...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *pré-jogos* das ligas permitidas...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -92,7 +94,7 @@ def verificar_jogos():
         league = jogo["league"]
         jogo_id = str(fixture["id"])
         status = fixture["status"]["short"]
-        nome_liga = league["name"]
+        nome_liga = f"{league['country']} - {league['name']}"
 
         if status != "NS" or jogo_id in enviados or nome_liga not in LIGAS_PERMITIDAS:
             continue
@@ -115,4 +117,4 @@ def verificar_jogos():
 if __name__ == "__main__":
     while True:
         verificar_jogos()
-        time.sleep(21600)  # Verifica a cada 6 horas
+        time.sleep(21600)  # Executa a cada 6 horas
