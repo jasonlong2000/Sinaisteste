@@ -20,15 +20,18 @@ LIGAS_PERMITIDAS = {
 
 HEADERS = {"x-apisports-key": API_KEY}
 
+
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
         with open(ARQUIVO_ENVIADOS, "r") as f:
             return set(line.strip() for line in f)
     return set()
 
+
 def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
+
 
 def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
@@ -40,6 +43,7 @@ def buscar_jogos_do_dia():
     except:
         return []
 
+
 def buscar_estatisticas(league_id, season, team_id):
     url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
     try:
@@ -49,8 +53,10 @@ def buscar_estatisticas(league_id, season, team_id):
     except:
         return {}
 
+
 def formatar_valor(v):
     return str(v) if v not in [None, "-", ""] else "Indisponível"
+
 
 def sugestao_de_placar(gm1, gm2, gs1, gs2):
     try:
@@ -61,37 +67,24 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
     except:
         return "Indefinido"
 
-def gerar_sugestao(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away):
+
+def gerar_sugestao(gm_home, gm_away):
     try:
         gm_home = float(gm_home)
         gm_away = float(gm_away)
-        gs_home = float(gs_home)
-        gs_away = float(gs_away)
-        esc_home = float(esc_home)
-        esc_away = float(esc_away)
+        diferenca = abs(gm_home - gm_away)
 
-        total_gols = gm_home + gm_away
-        diff_gols = abs(gm_home - gm_away)
         sugestoes = []
-
-        if total_gols >= 1.5:
+        if diferenca >= 1.0:
+            sugestoes.append("🏆 Vitória provável: " + ("Mandante" if gm_home > gm_away else "Visitante"))
+        if gm_home + gm_away >= 1.5:
             sugestoes.append("⚽ Mais de 1.5 gols")
+        sugestoes.append("🤝 Dupla chance: 1X")
 
-        if diff_gols >= 1.2:
-            if gm_home > gm_away:
-                sugestoes.append("🏆 Vitória provável: Mandante")
-            else:
-                sugestoes.append("🏆 Vitória provável: Visitante")
-
-        if gm_home >= 1.0:
-            sugestoes.append("🤝 Dupla chance: 1X")
-
-        if esc_home + esc_away >= 9:
-            sugestoes.append("🚩 Mais de 8.5 escanteios")
-
-        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+        return "\n".join(sugestoes)
     except:
         return "Sem sugestão clara"
+
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -122,7 +115,7 @@ def formatar_jogo(jogo):
     esc_away = formatar_valor(stats_away.get("corners", {}).get("average", {}).get("total"))
 
     placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
-    sugestoes = gerar_sugestao(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away)
+    sugestoes = gerar_sugestao(gm_home, gm_away)
 
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
@@ -135,6 +128,7 @@ def formatar_jogo(jogo):
         f"🔢 *Placar provável:* {placar}\n\n"
         f"💡 *Sugestões de entrada:*\n{sugestoes}"
     )
+
 
 def verificar_pre_jogos():
     enviados = carregar_enviados()
@@ -169,7 +163,8 @@ def verificar_pre_jogos():
             bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo hoje nas ligas selecionadas.", parse_mode="Markdown")
         except: pass
 
+
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # A cada 6 horas
+        time.sleep(21600)  # Executa a cada 6 horas
