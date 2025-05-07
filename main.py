@@ -9,9 +9,8 @@ API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
 ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
-
-bot = Bot(token=BOT_TOKEN)
 HEADERS = {"x-apisports-key": API_KEY}
+bot = Bot(token=BOT_TOKEN)
 
 LIGAS_PERMITIDAS = {
     "World - UEFA Champions League",
@@ -51,37 +50,32 @@ def buscar_estatisticas(league_id, season, team_id):
 def formatar_valor(v):
     return str(v) if v not in [None, "-", ""] else "Indisponível"
 
-def formatar_ultimos_jogos(team):
-    forma = team.get("form", "")
-    return " ".join(list(forma[-5:])) if forma else "Indisponível"
-
 def sugestao_de_placar(gm1, gm2, gs1, gs2):
     try:
         g1 = round((float(gm1) + float(gs2)) / 2)
         g2 = round((float(gm2) + float(gs1)) / 2)
-        alternativa = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
-        return f"{g1} x {g2} ou {alternativa}"
+        alt = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
+        return f"{g1} x {g2} ou {alt}"
     except:
         return "Indefinido"
 
-def gerar_sugestao(gm_home, gm_away):
+def gerar_sugestao(gm_home, gm_away, esc_home, esc_away):
     try:
         gm_home = float(gm_home)
         gm_away = float(gm_away)
-        total_gols = gm_home + gm_away
+        esc_home = float(esc_home)
+        esc_away = float(esc_away)
 
+        total_gols = gm_home + gm_away
+        total_esc = esc_home + esc_away
         sugestoes = []
-        if total_gols >= 2.5:
-            sugestoes.append("⚽ Mais de 2.5 gols")
-        elif total_gols >= 1.5:
-            sugestoes.append("⚽ Mais de 1.5 gols")
 
         if abs(gm_home - gm_away) >= 1.0:
-            favorito = "Mandante" if gm_home > gm_away else "Visitante"
-            sugestoes.append(f"🏆 Vitória provável: {favorito}")
-            sugestoes.append("🤝 Dupla chance: 1X" if favorito == "Mandante" else "🤝 Dupla chance: X2")
-
-        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+            sugestoes.append("🏆 Vitória provável: Mandante" if gm_home > gm_away else "🏆 Vitória provável: Visitante")
+        if total_gols >= 2:
+            sugestoes.append("⚽ Mais de 1.5 gols")
+        sugestoes.append("🤝 Dupla chance: 1X" if gm_home >= gm_away else "🤝 Dupla chance: X2")
+        return "\n".join(sugestoes)
     except:
         return "Sem sugestão clara"
 
@@ -113,11 +107,8 @@ def formatar_jogo(jogo):
     esc_home = formatar_valor(stats_home.get("corners", {}).get("average", {}).get("total"))
     esc_away = formatar_valor(stats_away.get("corners", {}).get("average", {}).get("total"))
 
-    forma_home = formatar_ultimos_jogos(stats_home.get("form", {}))
-    forma_away = formatar_ultimos_jogos(stats_away.get("form", {}))
-
     placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
-    sugestoes = gerar_sugestao(gm_home, gm_away)
+    sugestoes = gerar_sugestao(gm_home, gm_away, esc_home, esc_away)
 
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
@@ -126,8 +117,7 @@ def formatar_jogo(jogo):
         f"📌 Status: {fixture['status']['short']}\n\n"
         f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
         f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
-        f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}\n"
-        f"📊 *Forma recente:* {home['name']}: {forma_home} | {away['name']}: {forma_away}\n\n"
+        f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}\n\n"
         f"🔢 *Placar provável:* {placar}\n\n"
         f"💡 *Sugestões de entrada:*\n{sugestoes}"
     )
@@ -137,6 +127,7 @@ def verificar_pre_jogos():
     jogos = buscar_jogos_do_dia()
     novos = 0
 
+    print("🟢 Verificando pré-jogos...")
     try:
         bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
     except: pass
@@ -168,4 +159,4 @@ def verificar_pre_jogos():
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Executa a cada 6h
+        time.sleep(21600)  # A cada 6 horas
