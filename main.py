@@ -65,25 +65,31 @@ def gerar_sugestao(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away):
     try:
         gm_home = float(gm_home)
         gm_away = float(gm_away)
+        gs_home = float(gs_home)
+        gs_away = float(gs_away)
         esc_home = float(esc_home)
         esc_away = float(esc_away)
 
         total_gols = gm_home + gm_away
-        total_esc = esc_home + esc_away
-
+        diff_gols = abs(gm_home - gm_away)
         sugestoes = []
-        if total_gols >= 2.5:
-            sugestoes.append("⚽ Mais de 2.5 gols")
-        if esc_home > 4 and esc_away > 4:
-            sugestoes.append("🚩 Mais de 9 escanteios")
-        if gm_home > gm_away:
-            sugestoes.append("🏆 Vitória provável: Mandante")
-        elif gm_away > gm_home:
-            sugestoes.append("🏆 Vitória provável: Visitante")
-        else:
+
+        if total_gols >= 1.5:
+            sugestoes.append("⚽ Mais de 1.5 gols")
+
+        if diff_gols >= 1.2:
+            if gm_home > gm_away:
+                sugestoes.append("🏆 Vitória provável: Mandante")
+            else:
+                sugestoes.append("🏆 Vitória provável: Visitante")
+
+        if gm_home >= 1.0:
             sugestoes.append("🤝 Dupla chance: 1X")
 
-        return "\n".join(sugestoes)
+        if esc_home + esc_away >= 9:
+            sugestoes.append("🚩 Mais de 8.5 escanteios")
+
+        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
     except:
         return "Sem sugestão clara"
 
