@@ -20,7 +20,6 @@ LIGAS_PERMITIDAS = {
 
 HEADERS = {"x-apisports-key": API_KEY}
 
-
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
         with open(ARQUIVO_ENVIADOS, "r") as f:
@@ -68,6 +67,61 @@ def buscar_odds(fixture_id):
     except:
         return []
 
+def gerar_sugestoes(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away):
+    sugestoes = []
+    try:
+        gm1 = float(gm_home)
+        gm2 = float(gm_away)
+        gs1 = float(gs_home)
+        gs2 = float(gs_away)
+        total_gols = gm1 + gm2
+        total_esc = float(esc_home) + float(esc_away)
+
+        if gm1 > 1.5 and gs2 > 1.0:
+            sugestoes.append("🏆 Vitória do time da casa")
+        if gm2 > 1.2 and gs1 > 1.0:
+            sugestoes.append("🛡️ Dupla chance visitante")
+        if total_gols > 2.7:
+            sugestoes.append("🔥 Mais de 2.5 gols")
+        if gm1 > 1.0 and gm2 > 1.0:
+            sugestoes.append("⚔️ Ambos marcam")
+        if total_esc >= 8.5:
+            sugestoes.append("🚩 Mais de 8.5 escanteios")
+        sugestoes.append("🟨 Mais de 4.5 cartões")  # padrão
+
+    except:
+        return "Sem sugestão clara"
+
+    return '\n'.join(sugestoes) if sugestoes else "Sem sugestão"
+
+def gerar_sugestoes(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away):
+    sugestoes = []
+    try:
+        gm1 = float(gm_home)
+        gm2 = float(gm_away)
+        gs1 = float(gs_home)
+        gs2 = float(gs_away)
+        total_gols = gm1 + gm2
+        total_esc = float(esc_home) + float(esc_away)
+
+        if gm1 > 1.5 and gs2 > 1.0:
+            sugestoes.append("🏆 Vitória do time da casa")
+        if gm2 > 1.2 and gs1 > 1.0:
+            sugestoes.append("🛡️ Dupla chance visitante")
+        if total_gols > 2.7:
+            sugestoes.append("🔥 Mais de 2.5 gols")
+        if gm1 > 1.0 and gm2 > 1.0:
+            sugestoes.append("⚔️ Ambos marcam")
+        if total_esc >= 8.5:
+            sugestoes.append("🚩 Mais de 8.5 escanteios")
+        sugestoes.append("🟨 Mais de 4.5 cartões")
+
+    except:
+        return "Sem sugestão clara"
+
+    return '\n'.join(sugestoes) if sugestoes else "Sem sugestão"
+
+
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
@@ -89,42 +143,27 @@ def formatar_jogo(jogo):
     except:
         data, hora = "-", "-"
 
-    estat_home = buscar_estatisticas(league["id"], league["season"], home["id"])
-    estat_away = buscar_estatisticas(league["id"], league["season"], away["id"])
+    stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
+    stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    gols_m = estat_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
-    gols_s = estat_home.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
-    esc_home = estat_home.get("corners", {}).get("average", {}).get("total", "-")
-    esc_away = estat_away.get("corners", {}).get("average", {}).get("total", "-")
+    gm_home = stats_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    gs_home = stats_home.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
+    gm_away = stats_away.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    gs_away = stats_away.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
+    esc_home = stats_home.get("corners", {}).get("average", {}).get("total", "-")
+    esc_away = stats_away.get("corners", {}).get("average", {}).get("total", "-")
 
-    ultimos_home = buscar_h2h(home["id"], home["id"])
-    ultimos_away = buscar_h2h(away["id"], away["id"])
-    ult_home = ''.join(["✅" if f["teams"]["home"]["winner"] else "❌" for f in ultimos_home])
-    ult_away = ''.join(["✅" if f["teams"]["home"]["winner"] else "❌" for f in ultimos_away])
-
-    h2h = buscar_h2h(home["id"], away["id"])
-    h2h_txt = '\n'.join([f"{f['teams']['home']['name']} {f['goals']['home']} x {f['goals']['away']} {f['teams']['away']['name']}" for f in h2h]) or "Sem confrontos recentes."
-
-    # Odds
-    odds = buscar_odds(fixture["id"])
-    aposta = ""
-    if odds:
-        for book in odds[0].get("bookmakers", []):
-            for bet in book.get("bets", []):
-                if bet["name"] == "Match Winner":
-                    linhas = [f"{odd['value']}: {odd['odd']}" for odd in bet["values"]]
-                    aposta = '\n'.join(linhas)
+    sugestao = gerar_sugestoes(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away)
 
     return (
         f"\u26bd *{home_name} x {away_name}*\n"
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n"
-        f"\n🎯 *Gols*: média marcados: {gols_m} | sofridos: {gols_s}\n"
+        f"\n🎯 *Gols esperados:* {home_name}: {gm_home} | {away_name}: {gm_away}\n"
+        f"❌ *Gols sofridos:* {home_name}: {gs_home} | {away_name}: {gs_away}\n"
         f"🚩 *Escanteios médios:* {home_name}: {esc_home} | {away_name}: {esc_away}\n"
-        f"\n📈 *Forma:*\n{home_name}: {ult_home}\n{away_name}: {ult_away}\n"
-        f"\n🤝 *Confrontos diretos:*\n{h2h_txt}\n"
-        f"\n💡 *Sugestões:*\n- {aposta if aposta else 'Odds indisponíveis'}"
+        f"\n💡 *Sugestões de entrada:*\n{sugestao}"
     )
 
 def verificar_pre_jogos():
@@ -133,7 +172,7 @@ def verificar_pre_jogos():
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia*...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
