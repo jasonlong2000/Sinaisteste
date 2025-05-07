@@ -8,9 +8,16 @@ import os
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
-ARQUIVO_ENVIADOS = "champions_pre_jogos.txt"
+ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
+
+ligas_permitidas = [
+    "UEFA Champions League",
+    "Copa Libertadores",
+    "Copa Sudamericana",
+    "Recopa Sudamericana"
+]
 
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
@@ -22,14 +29,12 @@ def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
 
-def buscar_jogos_champions():
+def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
-
     headers = {
         "x-apisports-key": API_KEY
     }
-
     try:
         res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
@@ -45,7 +50,7 @@ def formatar_jogo(jogo):
 
     home = teams["home"]["name"]
     away = teams["away"]["name"]
-    status = fixture["status"]["short"]
+    liga = league["name"]
     local = fixture["venue"]["name"]
     timestamp = fixture["timestamp"]
 
@@ -59,19 +64,19 @@ def formatar_jogo(jogo):
 
     return (
         f"⚽ {home} x {away}\n"
-        f"🌍 UEFA Champions League\n"
+        f"🌍 {liga}\n"
         f"🏟️ Local: {local}\n"
         f"📅 Data: {data} | 🕒 Horário: {hora}\n"
-        f"📌 Status: {status}"
+        f"📌 Status: NS"
     )
 
-def verificar_champions_league():
+def verificar_pre_jogos():
     enviados = carregar_enviados()
-    jogos = buscar_jogos_champions()
+    jogos = buscar_jogos_do_dia()
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos da Champions League* (pré-jogo)...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -80,26 +85,25 @@ def verificar_champions_league():
         jogo_id = str(fixture["id"])
         status = fixture["status"]["short"]
 
-        if status != "NS" or jogo_id in enviados:
+        if status != "NS" or jogo_id in enviados or league["name"] not in ligas_permitidas:
             continue
 
-        if league["name"] == "UEFA Champions League":
-            try:
-                mensagem = formatar_jogo(jogo)
-                bot.send_message(chat_id=CHAT_ID, text=mensagem)
-                salvar_enviado(jogo_id)
-                novos += 1
-                time.sleep(2)
-            except Exception as e:
-                print(f"Erro ao enviar jogo {jogo_id}: {e}")
-                time.sleep(5)
+        try:
+            mensagem = formatar_jogo(jogo)
+            bot.send_message(chat_id=CHAT_ID, text=mensagem)
+            salvar_enviado(jogo_id)
+            novos += 1
+            time.sleep(2)
+        except Exception as e:
+            print(f"Erro ao enviar jogo {jogo_id}: {e}")
+            time.sleep(5)
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo *NS* da Champions League encontrado hoje.", parse_mode="Markdown")
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo *NS* nas ligas selecionadas hoje.", parse_mode="Markdown")
         except: pass
 
 if __name__ == "__main__":
     while True:
-        verificar_champions_league()
+        verificar_pre_jogos()
         time.sleep(21600)  # Executa a cada 6 horas
