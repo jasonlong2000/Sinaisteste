@@ -12,11 +12,11 @@ ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
 
-# IDs das ligas desejadas
-LIGAS_IDS = [2, 11, 13]  # Champions, Sudamericana, Libertadores
-
-# Status considerados não finalizados
-STATUS_ACEITOS = {"NS", "TBD", "1H", "2H", "HT", "ET", "P", "INT", "LIVE", "BREAK"}
+LIGAS_PERMITIDAS = {
+    "World - UEFA Champions League",
+    "World - CONMEBOL Libertadores",
+    "World - CONMEBOL Sudamericana"
+}
 
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
@@ -32,6 +32,7 @@ def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
     headers = {"x-apisports-key": API_KEY}
+
     try:
         res = requests.get(url, headers=headers, timeout=15)
         res.raise_for_status()
@@ -40,24 +41,55 @@ def buscar_jogos_do_dia():
         print(f"Erro ao buscar jogos: {e}")
         return []
 
+def buscar_estatisticas_prejogo(league_id, season, team_id):
+    url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
+    headers = {"x-apisports-key": API_KEY}
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        return res.json().get("response", {})
+    except Exception as e:
+        print(f"Erro ao buscar estatísticas: {e}")
+        return {}
+
+def buscar_ultimos_jogos(team_id):
+    url = f"https://v3.football.api-sports.io/fixtures?team={team_id}&last=5"
+    headers = {"x-apisports-key": API_KEY}
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        return res.json().get("response", [])
+    except:
+        return []
+
+def buscar_h2h(team1, team2):
+    url = f"https://v3.football.api-sports.io/fixtures/headtohead?h2h={team1}-{team2}&last=3"
+    headers = {"x-apisports-key": API_KEY}
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        return res.json().get("response", [])
+    except:
+        return []
+
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
     league = jogo["league"]
+    home = teams["home"]
+    away = teams["away"]
 
-    home = teams["home"]["name"]
-    away = teams["away"]["name"]
-    liga = league["name"]
+    home_name = home["name"]
+    away_name = away["name"]
+    league_name = league["name"]
     pais = league["country"]
     status = fixture["status"]["short"]
     local = fixture["venue"]["name"]
     timestamp = fixture["timestamp"]
+    season = league["season"]
+    league_id = league["id"]
 
-    gols_home = jogo.get("goals", {}).get("home", "-")
-    gols_away = jogo.get("goals", {}).get("away", "-")
-    rodada = fixture.get("round", "-")
-    arbitragem = fixture.get("referee", "-")
-
+    # Data e hora formatadas
     try:
         fuso = pytz.timezone("America/Sao_Paulo")
         dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
@@ -66,22 +98,46 @@ def formatar_jogo(jogo):
     except:
         data, hora = "?", "?"
 
+    # Estatísticas pré-jogo
+    estat_home = buscar_estatisticas_prejogo(league_id, season, home["id"])
+    estat_away = buscar_estatisticas_prejogo(league_id, season, away["id"])
+
+    avg_home = estat_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    avg_away = estat_away.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+
+    # Forma recente
+    ult_home = buscar_ultimos_jogos(home["id"])
+    ult_away = buscar_ultimos_jogos(away["id"])
+
+    def forma(lista):
+        return ''.join(["✅" if j["teams"]["home"]["winner"] == (j["teams"]["home"]["id"] == home["id"]) else "❌" for j in lista])
+
+    form_home = forma(ult_home)
+    form_away = forma(ult_away)
+
+    # Confrontos diretos
+    h2h = buscar_h2h(home["id"], away["id"])
+    h2h_resultado = "\n".join([f"{f['teams']['home']['name']} {f['goals']['home']} x {f['goals']['away']} {f['teams']['away']['name']}" for f in h2h])
+
     return (
-        f"\u26bd {home} {gols_home} x {gols_away} {away}\n"
-        f"\U0001F30D {liga} ({pais})\n"
+        f"\u26bd *{home_name} x {away_name}*\n"
+        f"🌍 {league_name} ({pais})\n"
         f"\U0001F3DF️ Estádio: {local or 'Indefinido'}\n"
-        f"\u2b55 Status: {status} | \ud83d\udcc5 {data} | \ud83d\udd52 {hora}\n"
-        f"\u26a1 Rodada: {rodada} | ⚖️ Árbitro: {arbitragem}"
+        f"📅 {data} | 🕒 {hora}\n"
+        f"📌 Status: {status}\n"
+        f"\n\ud83c\udf1f *Forma recente:*\n{home_name}: {form_home}\n{away_name}: {form_away}\n"
+        f"\n\ud83d\udcca *Média de gols marcados por partida:*\n{home_name}: {avg_home} | {away_name}: {avg_away}\n"
+        f"\n🤝 *Últimos confrontos diretos:*\n{h2h_resultado if h2h_resultado else 'Sem confrontos recentes.'}"
     )
 
-def verificar_jogos_nao_finalizados():
+def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
     novos = 0
 
-    print("🔄 Verificando jogos do dia (não finalizados)...")
+    print("🟢 Verificando pré-jogos...")
     try:
-        bot.send_message(chat_id=CHAT_ID, text="\ud83d\udd0e Listando jogos *não finalizados* de hoje...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -89,14 +145,14 @@ def verificar_jogos_nao_finalizados():
         league = jogo["league"]
         jogo_id = str(fixture["id"])
         status = fixture["status"]["short"]
-        league_id = league.get("id")
+        nome_liga = f"{league['country']} - {league['name']}"
 
-        if jogo_id in enviados or league_id not in LIGAS_IDS or status not in STATUS_ACEITOS:
+        if status != "NS" or jogo_id in enviados or nome_liga not in LIGAS_PERMITIDAS:
             continue
 
         try:
             mensagem = formatar_jogo(jogo)
-            bot.send_message(chat_id=CHAT_ID, text=mensagem)
+            bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
             salvar_enviado(jogo_id)
             novos += 1
             time.sleep(2)
@@ -106,10 +162,10 @@ def verificar_jogos_nao_finalizados():
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo *não finalizado* encontrado hoje nas ligas selecionadas.", parse_mode="Markdown")
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo *NS* nas ligas selecionadas hoje.", parse_mode="Markdown")
         except: pass
 
 if __name__ == "__main__":
     while True:
-        verificar_jogos_nao_finalizados()
+        verificar_pre_jogos()
         time.sleep(21600)  # Executa a cada 6 horas
