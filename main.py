@@ -9,8 +9,9 @@ API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
 ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
-HEADERS = {"x-apisports-key": API_KEY}
+
 bot = Bot(token=BOT_TOKEN)
+HEADERS = {"x-apisports-key": API_KEY}
 
 LIGAS_PERMITIDAS = {
     "World - UEFA Champions League",
@@ -47,37 +48,29 @@ def buscar_estatisticas(league_id, season, team_id):
     except:
         return {}
 
-def formatar_valor(v):
-    return str(v) if v not in [None, "-", ""] else "Indisponível"
+def formatar_estatisticas(stats, nome):
+    if not stats:
+        return f"*{nome}*: estatísticas indisponíveis"
 
-def sugestao_de_placar(gm1, gm2, gs1, gs2):
-    try:
-        g1 = round((float(gm1) + float(gs2)) / 2)
-        g2 = round((float(gm2) + float(gs1)) / 2)
-        alt = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
-        return f"{g1} x {g2} ou {alt}"
-    except:
-        return "Indefinido"
+    gols = stats['goals']
+    btts = stats.get('both_teams_to_score', {}).get('total', '-')
+    clean_sheet = stats.get('clean_sheet', {}).get('total', '-')
+    posse = stats.get('ball_possession', '-')
+    chutes = stats.get('shots', {}).get('total', {}).get('total', '-')
+    no_gol = stats.get('shots', {}).get('on', {}).get('total', '-')
+    faltas = stats.get('fouls', {}).get('total', '-')
+    passes = stats.get('passes', {}).get('accuracy', '-')
+    escanteios = stats.get('corners', {}).get('total', {}).get('total', '-')
+    amarelos = stats.get('cards', {}).get('yellow', {}).get('total', '-')
+    vermelhos = stats.get('cards', {}).get('red', {}).get('total', '-')
 
-def gerar_sugestao(gm_home, gm_away, esc_home, esc_away):
-    try:
-        gm_home = float(gm_home)
-        gm_away = float(gm_away)
-        esc_home = float(esc_home)
-        esc_away = float(esc_away)
-
-        total_gols = gm_home + gm_away
-        total_esc = esc_home + esc_away
-        sugestoes = []
-
-        if abs(gm_home - gm_away) >= 1.0:
-            sugestoes.append("🏆 Vitória provável: Mandante" if gm_home > gm_away else "🏆 Vitória provável: Visitante")
-        if total_gols >= 2:
-            sugestoes.append("⚽ Mais de 1.5 gols")
-        sugestoes.append("🤝 Dupla chance: 1X" if gm_home >= gm_away else "🤝 Dupla chance: X2")
-        return "\n".join(sugestoes)
-    except:
-        return "Sem sugestão clara"
+    return (
+        f"- Gols: {gols['for']['total']['total']} marcados | {gols['against']['total']['total']} sofridos\n"
+        f"- Posse: {posse}% | Chutes: {chutes} (no gol: {no_gol})\n"
+        f"- Faltas: {faltas} | Passes certos: {passes}%\n"
+        f"- Escanteios: {escanteios} | Cartões: {amarelos} amarelos, {vermelhos} vermelhos\n"
+        f"- BTTS: {btts} jogos | Clean sheets: {clean_sheet}"
+    )
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -90,47 +83,28 @@ def formatar_jogo(jogo):
     if nome_liga not in LIGAS_PERMITIDAS:
         return None
 
-    try:
-        dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
-        data = dt.strftime("%d/%m")
-        hora = dt.strftime("%H:%M")
-    except:
-        data, hora = "-", "-"
+    dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
+    data = dt.strftime("%d/%m")
+    hora = dt.strftime("%H:%M")
 
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    gm_home = formatar_valor(stats_home.get("goals", {}).get("for", {}).get("average", {}).get("total"))
-    gm_away = formatar_valor(stats_away.get("goals", {}).get("for", {}).get("average", {}).get("total"))
-    gs_home = formatar_valor(stats_home.get("goals", {}).get("against", {}).get("average", {}).get("total"))
-    gs_away = formatar_valor(stats_away.get("goals", {}).get("against", {}).get("average", {}).get("total"))
-    esc_home = formatar_valor(stats_home.get("corners", {}).get("average", {}).get("total"))
-    esc_away = formatar_valor(stats_away.get("corners", {}).get("average", {}).get("total"))
-
-    placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
-    sugestoes = gerar_sugestao(gm_home, gm_away, esc_home, esc_away)
+    estats_home = formatar_estatisticas(stats_home, home["name"])
+    estats_away = formatar_estatisticas(stats_away, away["name"])
 
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
-        f"🌍 {league['name']}\n"
-        f"📅 {data} | 🕒 {hora}\n"
+        f"🌍 {league['name']} | 📅 {data} 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
-        f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
-        f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
-        f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}\n\n"
-        f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Sugestões de entrada:*\n{sugestoes}"
+        f"📊 *Estatísticas por time:*\n\n"
+        f"🏠 *{home['name']}*\n{estats_home}\n\n"
+        f"🏃 *{away['name']}*\n{estats_away}"
     )
 
 def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
-    novos = 0
-
-    print("🟢 Verificando pré-jogos...")
-    try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
-    except: pass
 
     for jogo in jogos:
         fixture = jogo["fixture"]
@@ -140,23 +114,13 @@ def verificar_pre_jogos():
         if status != "NS" or jogo_id in enviados:
             continue
 
-        try:
-            mensagem = formatar_jogo(jogo)
-            if mensagem:
-                bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
-                salvar_enviado(jogo_id)
-                novos += 1
-                time.sleep(2)
-        except Exception as e:
-            print(f"Erro ao enviar jogo {jogo_id}: {e}")
-            time.sleep(5)
-
-    if novos == 0:
-        try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo hoje nas ligas selecionadas.", parse_mode="Markdown")
-        except: pass
+        mensagem = formatar_jogo(jogo)
+        if mensagem:
+            bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
+            salvar_enviado(jogo_id)
+            time.sleep(2)
 
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # A cada 6 horas
+        time.sleep(21600)  # a cada 6 horas
