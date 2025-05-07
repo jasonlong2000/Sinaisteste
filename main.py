@@ -8,20 +8,13 @@ import os
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
-ARQUIVO_ENVIADOS = "pre_jogos_filtrados.txt"
+ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
 
-# Lista corrigida com base nos nomes reais da API
-LIGAS_PERMITIDAS = [
-    "Brazil - Serie B",
-    "Bulgaria - First League",
-    "England - Premier League",
-    "Spain - La Liga",
-    "World - CONMEBOL Libertadores",
-    "World - CONMEBOL Sudamericana",
-    "World - UEFA Champions League"
-]
+# IDs oficiais das ligas da API-Football
+LIGAS_IDS_PERMITIDAS = [2, 11, 13, 72, 172, 71, 76, 78, 140, 135, 39, 40, 61, 62, 135, 203, 169,
+                        140, 253, 4, 5, 848, 848, 848, 848]  # Adicione IDs exatos conforme precisa
 
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
@@ -36,9 +29,7 @@ def salvar_enviado(jogo_id):
 def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
-    headers = {
-        "x-apisports-key": API_KEY
-    }
+    headers = {"x-apisports-key": API_KEY}
     try:
         res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
@@ -69,11 +60,11 @@ def formatar_jogo(jogo):
         data, hora = "?", "?"
 
     return (
-        f"⚽ {home} x {away}\n"
-        f"🌍 {liga} ({pais})\n"
-        f"🏟️ Local: {local}\n"
-        f"📅 Data: {data} | 🕒 Horário: {hora}\n"
-        f"📌 Status: {status}"
+        f"\u26bd {home} x {away}\n"
+        f"\U0001F30D {liga} ({pais})\n"
+        f"\U0001F3DF️ Local: {local}\n"
+        f"\ud83d\uddd3 Data: {data} | \ud83d\udd52 Horário: {hora}\n"
+        f"\ud83d\udd39 Status: {status}"
     )
 
 def verificar_pre_jogos():
@@ -82,7 +73,7 @@ def verificar_pre_jogos():
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *pré-jogos* das ligas selecionadas...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="\ud83d\udd0e Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -90,9 +81,9 @@ def verificar_pre_jogos():
         league = jogo["league"]
         jogo_id = str(fixture["id"])
         status = fixture["status"]["short"]
+        league_id = league.get("id")
 
-        liga_completa = f"{league['country']} - {league['name']}"
-        if status != "NS" or jogo_id in enviados or liga_completa not in LIGAS_PERMITIDAS:
+        if status != "NS" or jogo_id in enviados or league_id not in LIGAS_IDS_PERMITIDAS:
             continue
 
         try:
@@ -107,7 +98,7 @@ def verificar_pre_jogos():
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo com status *Not Started* nas ligas selecionadas.", parse_mode="Markdown")
+            bot.send_message(chat_id=CHAT_ID, text="\u26a0\ufe0f Nenhum jogo novo com status *Not Started* nas ligas selecionadas.", parse_mode="Markdown")
         except: pass
 
 if __name__ == "__main__":
