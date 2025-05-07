@@ -1,40 +1,23 @@
 import requests
 from datetime import datetime
 from telegram import Bot
-import pytz
 import time
-import os
 
+# Suas credenciais
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
-ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
 
-ligas_permitidas = [
-    "UEFA Champions League",
-    "Copa Libertadores",
-    "Copa Sudamericana",
-    "Recopa Sudamericana"
-]
-
-def carregar_enviados():
-    if os.path.exists(ARQUIVO_ENVIADOS):
-        with open(ARQUIVO_ENVIADOS, "r") as f:
-            return set(line.strip() for line in f)
-    return set()
-
-def salvar_enviado(jogo_id):
-    with open(ARQUIVO_ENVIADOS, "a") as f:
-        f.write(f"{jogo_id}\n")
-
-def buscar_jogos_do_dia():
+def buscar_ligas_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
+
     headers = {
         "x-apisports-key": API_KEY
     }
+
     try:
         res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
@@ -43,67 +26,29 @@ def buscar_jogos_do_dia():
         print(f"Erro ao buscar jogos: {e}")
         return []
 
-def formatar_jogo(jogo):
-    fixture = jogo["fixture"]
-    teams = jogo["teams"]
-    league = jogo["league"]
-
-    home = teams["home"]["name"]
-    away = teams["away"]["name"]
-    liga = league["name"]
-    local = fixture["venue"]["name"]
-    timestamp = fixture["timestamp"]
-
-    try:
-        fuso = pytz.timezone("America/Sao_Paulo")
-        dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
-        data = dt.strftime("%d/%m")
-        hora = dt.strftime("%H:%M")
-    except:
-        data, hora = "?", "?"
-
-    return (
-        f"⚽ {home} x {away}\n"
-        f"🌍 {liga}\n"
-        f"🏟️ Local: {local}\n"
-        f"📅 Data: {data} | 🕒 Horário: {hora}\n"
-        f"📌 Status: NS"
-    )
-
-def verificar_pre_jogos():
-    enviados = carregar_enviados()
-    jogos = buscar_jogos_do_dia()
-    novos = 0
-
-    try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
-    except: pass
+def enviar_ligas_unicas():
+    jogos = buscar_ligas_do_dia()
+    ligas = set()
 
     for jogo in jogos:
-        fixture = jogo["fixture"]
         league = jogo["league"]
-        jogo_id = str(fixture["id"])
-        status = fixture["status"]["short"]
+        nome = league["name"]
+        pais = league["country"]
+        liga_id = league["id"]
+        entrada = f"{pais} - {nome} (ID: {liga_id})"
+        ligas.add(entrada)
 
-        if status != "NS" or jogo_id in enviados or league["name"] not in ligas_permitidas:
-            continue
+    if not ligas:
+        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhuma liga encontrada hoje na API.")
+        return
 
-        try:
-            mensagem = formatar_jogo(jogo)
-            bot.send_message(chat_id=CHAT_ID, text=mensagem)
-            salvar_enviado(jogo_id)
-            novos += 1
-            time.sleep(2)
-        except Exception as e:
-            print(f"Erro ao enviar jogo {jogo_id}: {e}")
-            time.sleep(5)
+    lista_formatada = "\n".join(sorted(ligas))
+    mensagem = f"📋 *Ligas encontradas hoje:*\n\n{lista_formatada}"
 
-    if novos == 0:
-        try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo *NS* nas ligas selecionadas hoje.", parse_mode="Markdown")
-        except: pass
+    try:
+        bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Erro ao enviar mensagem no Telegram: {e}")
 
 if __name__ == "__main__":
-    while True:
-        verificar_pre_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas
+    enviar_ligas_unicas()
