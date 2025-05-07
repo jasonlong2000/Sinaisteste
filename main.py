@@ -5,31 +5,28 @@ import pytz
 import time
 import os
 
-# Suas chaves
+# Configurações
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
 ARQUIVO_ENVIADOS = "pre_jogos_filtrados.txt"
 
-# Iniciar bot
 bot = Bot(token=BOT_TOKEN)
 
-# Ligas permitidas
+# Lista com apenas os nomes das ligas
 LIGAS_PERMITIDAS = [
-    "Belgium - Pro League", "Brazil - Serie A", "Brazil - Copa do Brasil",
-    "Brazil - Serie B", "Brazil - Paulista", "Brazil - Gaucho 1",
-    "Bulgaria - First League", "England - Premier League", "England - Community Shield",
-    "England - Championship", "England - League Cup", "England - Premier League Summer Series",
-    "England - EFL League One", "UEFA Champions League", "UEFA Europa League",
-    "UEFA Super Cup", "UEFA Europa Conference League", "France - Ligue 1",
-    "France - Coupe de la Ligue", "Germany - Bundesliga", "UEFA Euro Championship",
+    "Pro League", "Serie A", "Copa do Brasil", "Serie B", "Paulista",
+    "Gaucho 1", "First League", "Premier League", "Community Shield",
+    "Championship", "League Cup", "Premier League Summer Series",
+    "EFL League One", "UEFA Champions League", "UEFA Europa League",
+    "UEFA Super Cup", "UEFA Europa Conference League", "Ligue 1",
+    "Coupe de la Ligue", "Bundesliga", "UEFA Euro Championship",
     "FIFA Confederations Cup", "UEFA Euro Qualifiers", "UEFA Nations League",
-    "FIFA Club World Cup", "Copa America", "Olympics", "Italy - Serie A",
-    "Spain - La Liga", "Spain - Copa del Rey", "Spain - Supercopa de Espana",
-    "USA - MLS", "Copa Libertadores", "Copa Sudamericana", "Recopa Sudamericana"
+    "FIFA Club World Cup", "Copa America", "Olympics", "Serie A",
+    "La Liga", "Copa del Rey", "Supercopa de Espana", "MLS",
+    "Copa Libertadores", "Copa Sudamericana", "Recopa Sudamericana"
 ]
 
-# Gerencia enviados
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
         with open(ARQUIVO_ENVIADOS, "r") as f:
@@ -40,7 +37,6 @@ def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
 
-# Consulta a API-Football
 def buscar_jogos():
     hoje = datetime.utcnow().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
@@ -54,7 +50,6 @@ def buscar_jogos():
         print(f"Erro ao buscar jogos: {e}")
         return []
 
-# Monta mensagem para Telegram
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
@@ -83,14 +78,13 @@ def formatar_jogo(jogo):
         f"📌 Status: Not Started"
     )
 
-# Loop de verificação
 def verificar_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos()
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* com status Not Started...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *pré-jogos* das ligas selecionadas...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -98,9 +92,9 @@ def verificar_jogos():
         league = jogo["league"]
         jogo_id = str(fixture["id"])
         status = fixture["status"]["short"]
-        nome_completo = f"{league['name']}" if "International" not in league["country"] else f"{league['country']} - {league['name']}"
+        nome_liga = league["name"]
 
-        if status != "NS" or jogo_id in enviados or nome_completo not in LIGAS_PERMITIDAS:
+        if status != "NS" or jogo_id in enviados or nome_liga not in LIGAS_PERMITIDAS:
             continue
 
         try:
@@ -118,8 +112,7 @@ def verificar_jogos():
             bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado nas ligas selecionadas.", parse_mode="Markdown")
         except: pass
 
-# Loop contínuo
 if __name__ == "__main__":
     while True:
         verificar_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas
+        time.sleep(21600)  # Verifica a cada 6 horas
