@@ -1,20 +1,17 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from telegram import Bot
 import pytz
 import time
 import os
 
-# Configuração
-API_KEY = "178188b6d107c6acc99704e53d196b72c720d048a07044d16fa9334acb849dd9"
+API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
-LEAGUE_IDS = [12321]  # Champions League (adicione mais se quiser)
-ARQUIVO_ENVIADOS = "pre_jogos_enviados.txt"
+ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
 
-# Salva IDs dos jogos já enviados
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
         with open(ARQUIVO_ENVIADOS, "r") as f:
@@ -25,96 +22,84 @@ def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
 
-# Busca jogos do dia
-def buscar_jogos(league_id):
-    url = f"https://api.football-data-api.com/todays-matches?key={API_KEY}&league_id={league_id}"
+def buscar_jogos_do_dia():
+    hoje = datetime.now().strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
+
+    headers = {
+        "x-apisports-key": API_KEY
+    }
+
     try:
-        res = requests.get(url, timeout=15)
+        res = requests.get(url, headers=headers, timeout=10)
         res.raise_for_status()
-        return res.json().get("data", [])
+        return res.json().get("response", [])
     except Exception as e:
-        print(f"Erro na liga {league_id}: {e}")
+        print(f"Erro ao buscar jogos: {e}")
         return []
 
-# Monta mensagem de pré-jogo
 def formatar_jogo(jogo):
-    home = jogo.get("home_name", "Time A")
-    away = jogo.get("away_name", "Time B")
-    liga = jogo.get("league_name", "Liga")
-    fase = jogo.get("stage_name", "-")
-    status = jogo.get("status", "-").upper()
+    fixture = jogo["fixture"]
+    teams = jogo["teams"]
+    league = jogo["league"]
 
-    # Estatísticas pré-jogo
-    forma_home = jogo.get("home_form", "Indisponível")
-    forma_away = jogo.get("away_form", "Indisponível")
-    gols_home = jogo.get("home_goals_avg", "Indisponível")
-    gols_away = jogo.get("away_goals_avg", "Indisponível")
-    sofridos_home = jogo.get("home_goals_conceded_avg", "Indisponível")
-    sofridos_away = jogo.get("away_goals_conceded_avg", "Indisponível")
+    home = teams["home"]["name"]
+    away = teams["away"]["name"]
+    liga = league["name"]
+    pais = league["country"]
+    status = fixture["status"]["short"]
+    local = fixture["venue"]["name"]
+    timestamp = fixture["timestamp"]
 
-    # Data e hora
-    timestamp = jogo.get("date_unix", 0)
     try:
-        zona = pytz.timezone("America/Sao_Paulo")
-        dt = datetime.utcfromtimestamp(timestamp).astimezone(zona)
+        fuso = pytz.timezone("America/Sao_Paulo")
+        dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
         data = dt.strftime("%d/%m")
         hora = dt.strftime("%H:%M")
     except:
         data, hora = "?", "?"
 
     return (
-        f"⚽ *{home} x {away}*\n"
-        f"🏆 Liga: {liga} | 🏁 Fase: {fase}\n"
-        f"📅 Data: {data} | ⏰ Horário: {hora}\n"
-        f"📌 Status: {status}\n\n"
-        f"📊 *Estatísticas pré-jogo:*\n"
-        f"- Forma {home}: {forma_home}\n"
-        f"- Forma {away}: {forma_away}\n"
-        f"- Gols marcados (média): {home}: {gols_home} | {away}: {gols_away}\n"
-        f"- Gols sofridos (média): {home}: {sofridos_home} | {away}: {sofridos_away}"
+        f"⚽ {home} x {away}\n"
+        f"🌍 {liga} ({pais})\n"
+        f"🏟️ Local: {local}\n"
+        f"📅 Data: {data} | 🕒 Horário: {hora}\n"
+        f"📌 Status: {status}"
     )
 
-# Executa verificação
 def verificar_pre_jogos():
     enviados = carregar_enviados()
+    jogos = buscar_jogos_do_dia()
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia*...", parse_mode="Markdown")
-    except:
-        pass
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
+    except: pass
 
-    hoje = datetime.now(pytz.timezone("America/Sao_Paulo")).date()
+    for jogo in jogos:
+        fixture = jogo["fixture"]
+        jogo_id = str(fixture["id"])
+        status = fixture["status"]["short"]
 
-    for league_id in LEAGUE_IDS:
-        jogos = buscar_jogos(league_id)
-        for jogo in jogos:
-            jogo_id = str(jogo.get("id"))
-            status = jogo.get("status", "").lower()
-            timestamp = jogo.get("date_unix", 0)
-            data_jogo = datetime.utcfromtimestamp(timestamp).astimezone(pytz.timezone("America/Sao_Paulo")).date()
+        if status != "NS" or jogo_id in enviados:
+            continue
 
-            if status != "notstarted" or jogo_id in enviados or data_jogo != hoje:
-                continue
-
-            try:
-                mensagem = formatar_jogo(jogo)
-                bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
-                salvar_enviado(jogo_id)
-                novos += 1
-                time.sleep(2)
-            except Exception as e:
-                print(f"Erro ao enviar jogo {jogo_id}: {e}")
-                time.sleep(5)
+        try:
+            mensagem = formatar_jogo(jogo)
+            bot.send_message(chat_id=CHAT_ID, text=mensagem)
+            salvar_enviado(jogo_id)
+            novos += 1
+            time.sleep(2)
+        except Exception as e:
+            print(f"Erro ao enviar jogo {jogo_id}: {e}")
+            time.sleep(5)
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado hoje com status *NOTSTARTED*.", parse_mode="Markdown")
-        except:
-            pass
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo com status *Not Started* encontrado hoje.", parse_mode="Markdown")
+        except: pass
 
-# Loop principal
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Verifica a cada 6h
+        time.sleep(21600)  # Executa a cada 6 horas
