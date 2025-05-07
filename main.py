@@ -20,7 +20,6 @@ LIGAS_PERMITIDAS = {
 
 HEADERS = {"x-apisports-key": API_KEY}
 
-
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
         with open(ARQUIVO_ENVIADOS, "r") as f:
@@ -53,6 +52,41 @@ def buscar_estatisticas(league_id, season, team_id):
 def formatar_valor(v):
     return str(v) if v not in [None, "-", ""] else "Indisponível"
 
+def sugestao_de_placar(gm1, gm2, gs1, gs2):
+    try:
+        g1 = round((float(gm1) + float(gs2)) / 2)
+        g2 = round((float(gm2) + float(gs1)) / 2)
+        alternativa = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
+        return f"{g1} x {g2} ou {alternativa}"
+    except:
+        return "Indefinido"
+
+def gerar_sugestao(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away):
+    try:
+        gm_home = float(gm_home)
+        gm_away = float(gm_away)
+        esc_home = float(esc_home)
+        esc_away = float(esc_away)
+
+        total_gols = gm_home + gm_away
+        total_esc = esc_home + esc_away
+
+        sugestoes = []
+        if total_gols >= 2.5:
+            sugestoes.append("⚽ Mais de 2.5 gols")
+        if esc_home > 4 and esc_away > 4:
+            sugestoes.append("🚩 Mais de 9 escanteios")
+        if gm_home > gm_away:
+            sugestoes.append("🏆 Vitória provável: Mandante")
+        elif gm_away > gm_home:
+            sugestoes.append("🏆 Vitória provável: Visitante")
+        else:
+            sugestoes.append("🤝 Dupla chance: 1X")
+
+        return "\n".join(sugestoes)
+    except:
+        return "Sem sugestão clara"
+
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
@@ -81,14 +115,19 @@ def formatar_jogo(jogo):
     esc_home = formatar_valor(stats_home.get("corners", {}).get("average", {}).get("total"))
     esc_away = formatar_valor(stats_away.get("corners", {}).get("average", {}).get("total"))
 
+    placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
+    sugestoes = gerar_sugestao(gm_home, gm_away, gs_home, gs_away, esc_home, esc_away)
+
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n"
-        f"\n🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
+        f"📌 Status: {fixture['status']['short']}\n\n"
+        f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
         f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
-        f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}"
+        f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}\n\n"
+        f"🔢 *Placar provável:* {placar}\n\n"
+        f"💡 *Sugestões de entrada:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
@@ -127,4 +166,4 @@ def verificar_pre_jogos():
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas
+        time.sleep(21600)  # A cada 6 horas
