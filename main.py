@@ -12,9 +12,43 @@ ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
 
-# IDs oficiais das ligas da API-Football
-LIGAS_IDS_PERMITIDAS = [2, 11, 13, 72, 172, 71, 76, 78, 140, 135, 39, 40, 61, 62, 135, 203, 169,
-                        140, 253, 4, 5, 848, 848, 848, 848]  # Adicione IDs exatos conforme precisa
+# Ligas permitidas com nome + país
+LIGAS_PERMITIDAS = {
+    "Brazil - Serie A",
+    "Brazil - Copa do Brasil",
+    "Brazil - Serie B",
+    "Brazil - Paulista",
+    "Brazil - Gaucho 1",
+    "Bulgaria - First League",
+    "England - Premier League",
+    "England - Community Shield",
+    "England - Championship",
+    "England - League Cup",
+    "England - Premier League Summer Series",
+    "England - EFL League One",
+    "World - UEFA Champions League",
+    "World - UEFA Europa League",
+    "World - UEFA Super Cup",
+    "World - UEFA Europa Conference League",
+    "France - Ligue 1",
+    "France - Coupe de la Ligue",
+    "Germany - Bundesliga",
+    "World - UEFA Euro Championship",
+    "World - FIFA Confederations Cup",
+    "World - UEFA Euro Qualifiers",
+    "World - UEFA Nations League",
+    "World - FIFA Club World Cup",
+    "World - Copa America",
+    "World - Olympics",
+    "Italy - Serie A",
+    "Spain - La Liga",
+    "Spain - Copa del Rey",
+    "Spain - Supercopa de Espana",
+    "USA - MLS",
+    "World - CONMEBOL Libertadores",
+    "World - CONMEBOL Sudamericana",
+    "World - CONMEBOL Recopa Sudamericana"
+}
 
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
@@ -29,9 +63,10 @@ def salvar_enviado(jogo_id):
 def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
-    headers = {"x-apisports-key": API_KEY}
+    headers = { "x-apisports-key": API_KEY }
+
     try:
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(url, headers=headers, timeout=15)
         res.raise_for_status()
         return res.json().get("response", [])
     except Exception as e:
@@ -60,11 +95,11 @@ def formatar_jogo(jogo):
         data, hora = "?", "?"
 
     return (
-        f"\u26bd {home} x {away}\n"
-        f"\U0001F30D {liga} ({pais})\n"
-        f"\U0001F3DF️ Local: {local}\n"
-        f"\ud83d\uddd3 Data: {data} | \ud83d\udd52 Horário: {hora}\n"
-        f"\ud83d\udd39 Status: {status}"
+        f"⚽ {home} x {away}\n"
+        f"🌍 {liga} ({pais})\n"
+        f"🏟️ Local: {local or 'Indefinido'}\n"
+        f"📅 Data: {data} | 🕒 Horário: {hora}\n"
+        f"📌 Status: {status}"
     )
 
 def verificar_pre_jogos():
@@ -72,8 +107,9 @@ def verificar_pre_jogos():
     jogos = buscar_jogos_do_dia()
     novos = 0
 
+    print("🟢 Verificando pré-jogos...")
     try:
-        bot.send_message(chat_id=CHAT_ID, text="\ud83d\udd0e Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -81,9 +117,14 @@ def verificar_pre_jogos():
         league = jogo["league"]
         jogo_id = str(fixture["id"])
         status = fixture["status"]["short"]
-        league_id = league.get("id")
+        nome_liga = f"{league['country']} - {league['name']}"
 
-        if status != "NS" or jogo_id in enviados or league_id not in LIGAS_IDS_PERMITIDAS:
+        print(f"📌 Analisando: {nome_liga} | Status: {status}")
+
+        if status != "NS" or jogo_id in enviados:
+            continue
+
+        if nome_liga not in LIGAS_PERMITIDAS:
             continue
 
         try:
@@ -98,7 +139,7 @@ def verificar_pre_jogos():
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="\u26a0\ufe0f Nenhum jogo novo com status *Not Started* nas ligas selecionadas.", parse_mode="Markdown")
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo *NS* nas ligas selecionadas hoje.", parse_mode="Markdown")
         except: pass
 
 if __name__ == "__main__":
