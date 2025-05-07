@@ -27,11 +27,9 @@ def carregar_enviados():
             return set(line.strip() for line in f)
     return set()
 
-
 def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
-
 
 def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
@@ -43,7 +41,6 @@ def buscar_jogos_do_dia():
     except:
         return []
 
-
 def buscar_estatisticas(league_id, season, team_id):
     url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
     try:
@@ -52,7 +49,6 @@ def buscar_estatisticas(league_id, season, team_id):
         return res.json().get("response", {})
     except:
         return {}
-
 
 def buscar_h2h(home_id, away_id):
     url = f"https://v3.football.api-sports.io/fixtures/headtohead?h2h={home_id}-{away_id}&last=3"
@@ -63,7 +59,6 @@ def buscar_h2h(home_id, away_id):
     except:
         return []
 
-
 def buscar_odds(fixture_id):
     url = f"https://v3.football.api-sports.io/odds?fixture={fixture_id}"
     try:
@@ -72,7 +67,6 @@ def buscar_odds(fixture_id):
         return res.json().get("response", [])
     except:
         return []
-
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -95,51 +89,43 @@ def formatar_jogo(jogo):
     except:
         data, hora = "-", "-"
 
-    stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
-    stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
+    estat_home = buscar_estatisticas(league["id"], league["season"], home["id"])
+    estat_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    gm_home = stats_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
-    gs_home = stats_home.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
-    gm_away = stats_away.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
-    gs_away = stats_away.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
-    esc_home = stats_home.get("corners", {}).get("average", {}).get("total", "-")
-    esc_away = stats_away.get("corners", {}).get("average", {}).get("total", "-")
+    gols_m = estat_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    gols_s = estat_home.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
+    esc_home = estat_home.get("corners", {}).get("average", {}).get("total", "-")
+    esc_away = estat_away.get("corners", {}).get("average", {}).get("total", "-")
+
+    ultimos_home = buscar_h2h(home["id"], home["id"])
+    ultimos_away = buscar_h2h(away["id"], away["id"])
+    ult_home = ''.join(["✅" if f["teams"]["home"]["winner"] else "❌" for f in ultimos_home])
+    ult_away = ''.join(["✅" if f["teams"]["home"]["winner"] else "❌" for f in ultimos_away])
 
     h2h = buscar_h2h(home["id"], away["id"])
     h2h_txt = '\n'.join([f"{f['teams']['home']['name']} {f['goals']['home']} x {f['goals']['away']} {f['teams']['away']['name']}" for f in h2h]) or "Sem confrontos recentes."
 
     # Odds
-    odds_txt = ""
     odds = buscar_odds(fixture["id"])
+    aposta = ""
     if odds:
         for book in odds[0].get("bookmakers", []):
             for bet in book.get("bets", []):
                 if bet["name"] == "Match Winner":
-                    odds_txt = '\n'.join([f"{o['value']}: {o['odd']}" for o in bet["values"]])
-
-    # Sugestão
-    try:
-        s_home = float(gs_away)
-        s_away = float(gs_home)
-        m_home = float(gm_home)
-        m_away = float(gm_away)
-        sug = f"🎯 Placar provável: {round((m_home + s_away)/2)} x {round((m_away + s_home)/2)}"
-    except:
-        sug = "🎯 Placar provável: Indefinido"
+                    linhas = [f"{odd['value']}: {odd['odd']}" for odd in bet["values"]]
+                    aposta = '\n'.join(linhas)
 
     return (
-        f"⚽ *{home_name} x {away_name}*\n"
+        f"\u26bd *{home_name} x {away_name}*\n"
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n"
-        f"\n🎯 *Gols esperados:* {home_name}: {gm_home} / {away_name}: {gm_away}\n"
-        f"❌ *Gols sofridos:* {home_name}: {gs_home} / {away_name}: {gs_away}\n"
-        f"🚩 *Escanteios médios:* {home_name}: {esc_home} / {away_name}: {esc_away}\n"
+        f"\n🎯 *Gols*: média marcados: {gols_m} | sofridos: {gols_s}\n"
+        f"🚩 *Escanteios médios:* {home_name}: {esc_home} | {away_name}: {esc_away}\n"
+        f"\n📈 *Forma:*\n{home_name}: {ult_home}\n{away_name}: {ult_away}\n"
         f"\n🤝 *Confrontos diretos:*\n{h2h_txt}\n"
-        f"\n💡 *Odds pré-jogo:*\n{odds_txt or 'Indisponível'}\n"
-        f"\n📈 *{sug}*"
+        f"\n💡 *Sugestões:*\n- {aposta if aposta else 'Odds indisponíveis'}"
     )
-
 
 def verificar_pre_jogos():
     enviados = carregar_enviados()
@@ -147,7 +133,7 @@ def verificar_pre_jogos():
     novos = 0
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia*...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
@@ -178,4 +164,4 @@ def verificar_pre_jogos():
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Roda a cada 6h
+        time.sleep(21600)
