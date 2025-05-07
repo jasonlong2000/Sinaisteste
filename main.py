@@ -52,8 +52,8 @@ def buscar_estatisticas_prejogo(league_id, season, team_id):
         print(f"Erro ao buscar estatísticas: {e}")
         return {}
 
-def buscar_ultimos_jogos(team_id):
-    url = f"https://v3.football.api-sports.io/fixtures?team={team_id}&last=5"
+def buscar_ultimos_jogos_liga(team_id, league_id):
+    url = f"https://v3.football.api-sports.io/fixtures?team={team_id}&league={league_id}&last=3"
     headers = {"x-apisports-key": API_KEY}
     try:
         res = requests.get(url, headers=headers, timeout=10)
@@ -89,7 +89,6 @@ def formatar_jogo(jogo):
     season = league["season"]
     league_id = league["id"]
 
-    # Data e hora formatadas
     try:
         fuso = pytz.timezone("America/Sao_Paulo")
         dt = datetime.utcfromtimestamp(timestamp).astimezone(fuso)
@@ -98,24 +97,25 @@ def formatar_jogo(jogo):
     except:
         data, hora = "?", "?"
 
-    # Estatísticas pré-jogo
     estat_home = buscar_estatisticas_prejogo(league_id, season, home["id"])
     estat_away = buscar_estatisticas_prejogo(league_id, season, away["id"])
 
-    avg_home = estat_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
-    avg_away = estat_away.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    avg_gols_home = estat_home.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    avg_gols_away = estat_away.get("goals", {}).get("for", {}).get("average", {}).get("total", "-")
+    avg_sofridos_home = estat_home.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
+    avg_sofridos_away = estat_away.get("goals", {}).get("against", {}).get("average", {}).get("total", "-")
+    avg_corners_home = estat_home.get("corners", {}).get("average", {}).get("total", "-")
+    avg_corners_away = estat_away.get("corners", {}).get("average", {}).get("total", "-")
 
-    # Forma recente
-    ult_home = buscar_ultimos_jogos(home["id"])
-    ult_away = buscar_ultimos_jogos(away["id"])
+    ult_home = buscar_ultimos_jogos_liga(home["id"], league_id)
+    ult_away = buscar_ultimos_jogos_liga(away["id"], league_id)
 
     def forma(lista):
-        return ''.join(["✅" if j["teams"]["home"]["winner"] == (j["teams"]["home"]["id"] == home["id"]) else "❌" for j in lista])
+        return ' '.join(["✅" if j["teams"]["home"]["winner"] == (j["teams"]["home"]["id"] == home["id"]) else "❌" for j in lista])
 
     form_home = forma(ult_home)
     form_away = forma(ult_away)
 
-    # Confrontos diretos
     h2h = buscar_h2h(home["id"], away["id"])
     h2h_resultado = "\n".join([f"{f['teams']['home']['name']} {f['goals']['home']} x {f['goals']['away']} {f['teams']['away']['name']}" for f in h2h])
 
@@ -125,9 +125,10 @@ def formatar_jogo(jogo):
         f"\U0001F3DF️ Estádio: {local or 'Indefinido'}\n"
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {status}\n"
-        f"\n\ud83c\udf1f *Forma recente:*\n{home_name}: {form_home}\n{away_name}: {form_away}\n"
-        f"\n\ud83d\udcca *Média de gols marcados por partida:*\n{home_name}: {avg_home} | {away_name}: {avg_away}\n"
-        f"\n🤝 *Últimos confrontos diretos:*\n{h2h_resultado if h2h_resultado else 'Sem confrontos recentes.'}"
+        f"\n\ud83c\udf1f *Forma recente na competição:*\n{home_name}: {form_home}\n{away_name}: {form_away}\n"
+        f"\n\ud83d\udcca *Gols por jogo:*\n{home_name}: {avg_gols_home} / Sofridos: {avg_sofridos_home}\n{away_name}: {avg_gols_away} / Sofridos: {avg_sofridos_away}\n"
+        f"\n🚩 *Escanteios média:*\n{home_name}: {avg_corners_home} | {away_name}: {avg_corners_away}\n"
+        f"\n🤝 *Confrontos diretos:*\n{h2h_resultado if h2h_resultado else 'Sem confrontos recentes.'}"
     )
 
 def verificar_pre_jogos():
