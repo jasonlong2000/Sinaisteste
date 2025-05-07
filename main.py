@@ -71,18 +71,18 @@ def verificar_pre_jogos():
     jogos = buscar_jogos_do_dia()
     novos = 0
 
-    print("🟢 Verificando pré-jogos...")
+    print("🟢 Verificando partidas do dia...")
     try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *todas as partidas do dia* nas ligas selecionadas...", parse_mode="Markdown")
     except: pass
 
     for jogo in jogos:
         fixture = jogo["fixture"]
         league = jogo["league"]
         jogo_id = str(fixture["id"])
-        status = fixture["status"]["short"]
+        league_id = league.get("id")
 
-        if status != "NS" or jogo_id in enviados or league["id"] not in LIGAS_IDS:
+        if jogo_id in enviados or league_id not in LIGAS_IDS:
             continue
 
         try:
@@ -97,7 +97,7 @@ def verificar_pre_jogos():
 
     if novos == 0:
         try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo com status *Not Started* nas ligas selecionadas.", parse_mode="Markdown")
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado hoje nas ligas selecionadas.", parse_mode="Markdown")
         except: pass
 
 if __name__ == "__main__":
