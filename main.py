@@ -98,10 +98,8 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
 
         if shots_total >= 20:
             sugestoes.append("🎯 Jogo com alta média de finalizações")
-
         if clean_home + clean_away >= 8:
             sugestoes.append("🧤 Tendência de placar magro ou Under")
-
         if first_goal_home >= 60:
             sugestoes.append("⚡ Mandante costuma marcar primeiro")
         if first_goal_away >= 60:
@@ -123,7 +121,6 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                 f"(Métricas: Over15: {over15_home}/{over15_away}, "
                 f"BTTS média: {btts_media}%, Finalizações no alvo: {shots_on_total})"
             )
-
     except:
         return "Sem sugestão clara"
 
@@ -147,6 +144,10 @@ def formatar_jogo(jogo):
 
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
+
+    if not stats_home or not stats_away:
+        print(f"⚠️ Dados ausentes: HOME={home['name']} | AWAY={away['name']}")
+        return None
 
     gm_home = formatar_valor(stats_home.get("goals", {}).get("for", {}).get("average", {}).get("total"))
     gm_away = formatar_valor(stats_away.get("goals", {}).get("for", {}).get("average", {}).get("total"))
@@ -220,4 +221,4 @@ def verificar_pre_jogos():
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas
+        time.sleep(21600)
