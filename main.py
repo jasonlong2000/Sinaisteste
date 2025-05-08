@@ -11,13 +11,14 @@ CHAT_ID = "-1002675165012"
 ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 
 bot = Bot(token=BOT_TOKEN)
-HEADERS = {"x-apisports-key": API_KEY}
 
 LIGAS_PERMITIDAS = {
     "World - UEFA Champions League",
     "World - CONMEBOL Libertadores",
     "World - CONMEBOL Sudamericana"
 }
+
+HEADERS = {"x-apisports-key": API_KEY}
 
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
@@ -48,29 +49,51 @@ def buscar_estatisticas(league_id, season, team_id):
     except:
         return {}
 
-def formatar_estatisticas(stats, nome):
-    if not stats:
-        return f"*{nome}*: estatísticas indisponíveis"
+def formatar_valor(v):
+    return str(v) if v not in [None, "-", ""] else "Indisponível"
 
-    gols = stats['goals']
-    btts = stats.get('both_teams_to_score', {}).get('total', '-')
-    clean_sheet = stats.get('clean_sheet', {}).get('total', '-')
-    posse = stats.get('ball_possession', '-')
-    chutes = stats.get('shots', {}).get('total', {}).get('total', '-')
-    no_gol = stats.get('shots', {}).get('on', {}).get('total', '-')
-    faltas = stats.get('fouls', {}).get('total', '-')
-    passes = stats.get('passes', {}).get('accuracy', '-')
-    escanteios = stats.get('corners', {}).get('total', {}).get('total', '-')
-    amarelos = stats.get('cards', {}).get('yellow', {}).get('total', '-')
-    vermelhos = stats.get('cards', {}).get('red', {}).get('total', '-')
+def sugestao_de_placar(gm1, gm2, gs1, gs2):
+    try:
+        g1 = round((float(gm1) + float(gs2)) / 2)
+        g2 = round((float(gm2) + float(gs1)) / 2)
+        alternativa = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
+        return f"{g1} x {g2} ou {alternativa}"
+    except:
+        return "Indefinido"
 
-    return (
-        f"- Gols: {gols['for']['total']['total']} marcados | {gols['against']['total']['total']} sofridos\n"
-        f"- Posse: {posse}% | Chutes: {chutes} (no gol: {no_gol})\n"
-        f"- Faltas: {faltas} | Passes certos: {passes}%\n"
-        f"- Escanteios: {escanteios} | Cartões: {amarelos} amarelos, {vermelhos} vermelhos\n"
-        f"- BTTS: {btts} jogos | Clean sheets: {clean_sheet}"
-    )
+def gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, card_home, card_away):
+    try:
+        gm_home = float(gm_home)
+        gm_away = float(gm_away)
+        btts_home = float(btts_home.strip('%'))
+        btts_away = float(btts_away.strip('%'))
+        esc_home = float(esc_home)
+        esc_away = float(esc_away)
+        card_home = float(card_home)
+        card_away = float(card_away)
+
+        sugestoes = []
+        total_gols = gm_home + gm_away
+        if total_gols >= 3.0:
+            sugestoes.append("⚽ Mais de 2.5 gols")
+        if total_gols >= 1.5:
+            sugestoes.append("⚽ Mais de 1.5 gols")
+        if total_gols >= 3.5:
+            sugestoes.append("⚽ Mais de 3.5 gols")
+        if (btts_home + btts_away)/2 >= 60:
+            sugestoes.append("✅ Ambas marcam (BTTS)")
+        if esc_home + esc_away >= 9:
+            sugestoes.append("🚩 Mais de 8.5 escanteios")
+        if card_home + card_away >= 4:
+            sugestoes.append("🟨 Jogo com mais de 3.5 cartões")
+        if gm_home > gm_away:
+            sugestoes.append("🏆 Vitória provável: Mandante")
+        elif gm_away > gm_home:
+            sugestoes.append("🏆 Vitória provável: Visitante")
+
+        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+    except:
+        return "Sem sugestão clara"
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -83,28 +106,52 @@ def formatar_jogo(jogo):
     if nome_liga not in LIGAS_PERMITIDAS:
         return None
 
-    dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
-    data = dt.strftime("%d/%m")
-    hora = dt.strftime("%H:%M")
+    try:
+        dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
+        data = dt.strftime("%d/%m")
+        hora = dt.strftime("%H:%M")
+    except:
+        data, hora = "-", "-"
 
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    estats_home = formatar_estatisticas(stats_home, home["name"])
-    estats_away = formatar_estatisticas(stats_away, away["name"])
+    gm_home = formatar_valor(stats_home.get("goals", {}).get("for", {}).get("average", {}).get("total"))
+    gm_away = formatar_valor(stats_away.get("goals", {}).get("for", {}).get("average", {}).get("total"))
+    gs_home = formatar_valor(stats_home.get("goals", {}).get("against", {}).get("average", {}).get("total"))
+    gs_away = formatar_valor(stats_away.get("goals", {}).get("against", {}).get("average", {}).get("total"))
+    btts_home = stats_home.get("both_teams_to_score", {}).get("percentage", "0")
+    btts_away = stats_away.get("both_teams_to_score", {}).get("percentage", "0")
+    esc_home = formatar_valor(stats_home.get("corners", {}).get("average", {}).get("total"))
+    esc_away = formatar_valor(stats_away.get("corners", {}).get("average", {}).get("total"))
+    card_home = formatar_valor(stats_home.get("cards", {}).get("yellow", {}).get("average", {}).get("total"))
+    card_away = formatar_valor(stats_away.get("cards", {}).get("yellow", {}).get("average", {}).get("total"))
+
+    placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
+    sugestoes = gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, card_home, card_away)
 
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
-        f"🌍 {league['name']} | 📅 {data} 🕒 {hora}\n"
+        f"🌍 {league['name']}\n"
+        f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
-        f"📊 *Estatísticas por time:*\n\n"
-        f"🏠 *{home['name']}*\n{estats_home}\n\n"
-        f"🏃 *{away['name']}*\n{estats_away}"
+        f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
+        f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
+        f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}\n"
+        f"🟨 *Cartões médios:* {home['name']}: {card_home} | {away['name']}: {card_away}\n\n"
+        f"🔢 *Placar provável:* {placar}\n\n"
+        f"💡 *Sugestões de entrada:*
+{sugestoes}"
     )
 
 def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
+    novos = 0
+
+    try:
+        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
+    except: pass
 
     for jogo in jogos:
         fixture = jogo["fixture"]
@@ -114,13 +161,23 @@ def verificar_pre_jogos():
         if status != "NS" or jogo_id in enviados:
             continue
 
-        mensagem = formatar_jogo(jogo)
-        if mensagem:
-            bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
-            salvar_enviado(jogo_id)
-            time.sleep(2)
+        try:
+            mensagem = formatar_jogo(jogo)
+            if mensagem:
+                bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
+                salvar_enviado(jogo_id)
+                novos += 1
+                time.sleep(2)
+        except Exception as e:
+            print(f"Erro ao enviar jogo {jogo_id}: {e}")
+            time.sleep(5)
+
+    if novos == 0:
+        try:
+            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo hoje nas ligas selecionadas.", parse_mode="Markdown")
+        except: pass
 
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # a cada 6 horas
+        time.sleep(21600)  # Executa a cada 6 horas
