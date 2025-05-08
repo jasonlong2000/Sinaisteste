@@ -63,7 +63,8 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
 
 def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                    clean_home, clean_away, first_goal_home, first_goal_away, shots_home, shots_away,
-                   over25_home, over25_away, shots_on_home, shots_on_away):
+                   over25_home, over25_away, shots_on_home, shots_on_away,
+                   gs_home, gs_away):
     try:
         gm_home = float(gm_home)
         gm_away = float(gm_away)
@@ -79,6 +80,8 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         over25_away = float(over25_away.strip('%'))
         shots_on_home = float(shots_on_home)
         shots_on_away = float(shots_on_away)
+        gs_home = float(gs_home)
+        gs_away = float(gs_away)
 
         sugestoes = []
         total_gols = gm_home + gm_away
@@ -105,9 +108,10 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
             sugestoes.append("⚡ Mandante costuma marcar primeiro")
         if first_goal_away >= 60:
             sugestoes.append("⚡ Visitante costuma marcar primeiro")
-        if gm_home > gm_away:
+
+        if (gm_home >= 1.5 and gs_away >= 1.2 and first_goal_home >= 60 and clean_home >= 3 and gm_home - gm_away > 0.8 and gs_away - gs_home > 0.5):
             sugestoes.append("🏆 Vitória provável: Mandante")
-        elif gm_away > gm_home:
+        elif (gm_away >= 1.5 and gs_home >= 1.2 and first_goal_away >= 60 and clean_away >= 3 and gm_away - gm_home > 0.8 and gs_home - gs_away > 0.5):
             sugestoes.append("🏆 Vitória provável: Visitante")
 
         return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
@@ -155,7 +159,8 @@ def formatar_jogo(jogo):
     placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
     sugestoes = gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                                clean_home, clean_away, first_goal_home, first_goal_away, shots_home, shots_away,
-                               over25_home, over25_away, shots_on_home, shots_on_away)
+                               over25_home, over25_away, shots_on_home, shots_on_away,
+                               gs_home, gs_away)
 
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
