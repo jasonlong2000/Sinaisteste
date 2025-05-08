@@ -72,38 +72,29 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         gs_away = float(gs_away)
         over15_home = float(over15_home.strip('%'))
         over15_away = float(over15_away.strip('%'))
-        under35_home = 3 - float(over25_home.strip('%')) / 100 * 3  # estimativa com 3 jogos
+        under35_home = 3 - float(over25_home.strip('%')) / 100 * 3
         under35_away = 3 - float(over25_away.strip('%')) / 100 * 3
         clean_home = int(clean_home)
         clean_away = int(clean_away)
-        fts_home = int(shots_home == "0")  # estimativa alternativa
+        fts_home = int(shots_home == "0")
         fts_away = int(shots_away == "0")
 
         sugestoes = []
 
-        # Vitória provável
         if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1 and fts_away >= 1:
-            sugestoes.append("🏆 Vitória provável: Mandante")
+            sugestoes.append("ð VitÃ³ria provÃ¡vel: Mandante")
         elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1 and fts_home >= 1:
-            sugestoes.append("🏆 Vitória provável: Visitante")
+            sugestoes.append("ð VitÃ³ria provÃ¡vel: Visitante")
 
-        # Over 1.5
         if (gm_home + gm_away + gs_home + gs_away) >= 6 and over15_home >= 66 and over15_away >= 66:
-            sugestoes.append("⚽ Over 1.5 gols")
+            sugestoes.append("â½ Over 1.5 gols")
 
-        # Under 3.5
         if gm_home <= 1.5 and gm_away <= 1.5 and under35_home == 3 and under35_away == 3:
-            sugestoes.append("🧤 Under 3.5 gols")
+            sugestoes.append("ð§¤ Under 3.5 gols")
 
-        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+        return "\n".join(sugestoes) if sugestoes else "Sem sugestÃ£o clara"
     except:
-        return "Sem sugestão clara"
-".join(sugestoes)
-    else:
-        return f"Sem sugestão clara
-(Métricas insuficientes: over_15_home={over15_home}, over_15_away={over15_away}, btts_media={btts_media}, shots_on_total={shots_on_total})"
-    except:
-        return "Sem sugestão clara"
+        return "Sem sugestÃ£o clara"
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -152,24 +143,20 @@ def formatar_jogo(jogo):
                                gs_home, gs_away, over15_home, over15_away)
 
     return (
-        f"⚽ *{home['name']} x {away['name']}*\n"
-        f"🌍 {league['name']}\n"
-        f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n\n"
-        f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
-        f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
-        f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Sugestões de entrada:*\n{sugestoes}"
+        f"â½ *{home['name']} x {away['name']}*\n"
+        f"ð {league['name']}\n"
+        f"ð {data} | ð {hora}\n"
+        f"ð Status: {fixture['status']['short']}\n\n"
+        f"ð¯ *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
+        f"â *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
+        f"ð¢ *Placar provÃ¡vel:* {placar}\n\n"
+        f"ð¡ *SugestÃµes de entrada:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
     novos = 0
-
-    try:
-        bot.send_message(chat_id=CHAT_ID, text="🔎 Verificando *jogos do dia* (pré-jogo)...", parse_mode="Markdown")
-    except: pass
 
     for jogo in jogos:
         fixture = jogo["fixture"]
@@ -191,11 +178,9 @@ def verificar_pre_jogos():
             time.sleep(5)
 
     if novos == 0:
-        try:
-            bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo hoje nas ligas selecionadas.", parse_mode="Markdown")
-        except: pass
+        bot.send_message(chat_id=CHAT_ID, text="â ï¸ Nenhum jogo novo com dados suficientes hoje.", parse_mode="Markdown")
 
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas
+        time.sleep(21600)
