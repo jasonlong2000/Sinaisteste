@@ -90,14 +90,6 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         shots_on_total = shots_on_home + shots_on_away
         btts_media = (btts_home + btts_away) / 2
 
-        print("DEBUG:", {
-            "Gols Esperados": total_gols,
-            "Over 1.5": (over15_home, over15_away),
-            "Over 2.5": (over25_home, over25_away),
-            "BTTS%": btts_media,
-            "Finalizações no Alvo": shots_on_total
-        })
-
         if over25_home >= 65 and over25_away >= 65 and total_gols >= 2.6 and btts_media >= 60 and shots_on_total >= 8:
             sugestoes.append("⚽ Mais de 2.5 gols")
 
@@ -123,7 +115,15 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
               gm_away - gm_home > 0.8 and gs_home - gs_away > 0.5):
             sugestoes.append("🏆 Vitória provável: Visitante")
 
-        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+        if sugestoes:
+            return "\n".join(sugestoes)
+        else:
+            return (
+                "Sem sugestão clara\n"
+                f"(Métricas: Over15: {over15_home}/{over15_away}, "
+                f"BTTS média: {btts_media}%, Finalizações no alvo: {shots_on_total})"
+            )
+
     except:
         return "Sem sugestão clara"
 
