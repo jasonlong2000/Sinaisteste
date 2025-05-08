@@ -138,10 +138,9 @@ def formatar_jogo(jogo):
         f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
         f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
         f"🚩 *Escanteios médios:* {home['name']}: {esc_home} | {away['name']}: {esc_away}\n"
-        f"🟨 *Cartões médios:* {home['name']}: {card_home} | {away['name']}: {card_away}\n\n"
+        f"🟨 *Cartões médios:* {home['name']}: {card_home} | {away['name']}: {card_away}\n"
         f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Sugestões de entrada:*
-{sugestoes}"
+        f"💡 *Sugestões de entrada:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
