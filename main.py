@@ -8,11 +8,13 @@ import os
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
 CHAT_ID = "-1002675165012"
+
 ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
 ARQUIVO_RESULTADOS = "resultados_pendentes.txt"
 
 bot = Bot(token=BOT_TOKEN)
-LIGAS_PERMITIDAS = {13, 14, 2}
+LIGAS_PERMITIDAS = {13, 2, 14}  # adicione outros IDs conforme descobrir
+
 HEADERS = {"x-apisports-key": API_KEY}
 
 def carregar_enviados():
@@ -92,7 +94,10 @@ def formatar_jogo(jogo):
     league = jogo["league"]
     home = teams["home"]
     away = teams["away"]
-    if league['id'] not in LIGAS_PERMITIDAS:
+
+    print(f"Liga detectada: {league['name']} | ID: {league['id']}")
+
+    if league["id"] not in LIGAS_PERMITIDAS:
         return None
 
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
