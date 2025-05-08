@@ -5,15 +5,14 @@ import pytz
 import time
 import os
 
-API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
-BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
-CHAT_ID = "-1002675165012"
+API_KEY = "SUA_API_KEY"
+BOT_TOKEN = "SEU_BOT_TOKEN"
+CHAT_ID = "-100XXXXXXXXXXXX"
 ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
+ARQUIVO_RESULTADOS = "resultados_pendentes.txt"
 
 bot = Bot(token=BOT_TOKEN)
-
-# IDs das ligas autorizadas: Libertadores, Sul-Americana, Champions
-LIGAS_PERMITIDAS = {13, 14, 2}
+LIGAS_PERMITIDAS = {13, 14, 2}  # Libertadores, Sul-Americana, Champions
 
 HEADERS = {"x-apisports-key": API_KEY}
 
@@ -27,24 +26,20 @@ def salvar_enviado(jogo_id):
     with open(ARQUIVO_ENVIADOS, "a") as f:
         f.write(f"{jogo_id}\n")
 
+def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
+    with open(ARQUIVO_RESULTADOS, "a") as f:
+        f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
+
 def buscar_jogos_do_dia():
     hoje = datetime.now().strftime("%Y-%m-%d")
     url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=15)
-        res.raise_for_status()
-        return res.json().get("response", [])
-    except:
-        return []
+    res = requests.get(url, headers=HEADERS)
+    return res.json().get("response", [])
 
 def buscar_estatisticas(league_id, season, team_id):
     url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        res.raise_for_status()
-        return res.json().get("response", {})
-    except:
-        return {}
+    res = requests.get(url, headers=HEADERS)
+    return res.json().get("response", {})
 
 def formatar_valor(v):
     return str(v) if v not in [None, "-", ""] else "0"
@@ -98,7 +93,6 @@ def formatar_jogo(jogo):
     league = jogo["league"]
     home = teams["home"]
     away = teams["away"]
-
     if league["id"] not in LIGAS_PERMITIDAS:
         return None
 
@@ -130,6 +124,8 @@ def formatar_jogo(jogo):
                                over25_home, over25_away, shots_on_home, shots_on_away,
                                gs_home, gs_away, over15_home, over15_away)
 
+    salvar_resultado_previsto(fixture["id"], home["name"], away["name"], sugestoes.replace("\n", " | "))
+
     dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
     data = dt.strftime("%d/%m")
     hora = dt.strftime("%H:%M")
@@ -137,42 +133,57 @@ def formatar_jogo(jogo):
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
         f"🌍 {league['name']}\n"
-        f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n\n"
-        f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
-        f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
-        f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Sugestões de entrada:*\n{sugestoes}"
+        f"📅 {data} | 🕒 {hora}\n\n"
+        f"💡 *Sugestões:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
-    novos = 0
-
     for jogo in jogos:
         fixture = jogo["fixture"]
         jogo_id = str(fixture["id"])
-        status = fixture["status"]["short"]
-
-        if status != "NS" or jogo_id in enviados:
+        if fixture["status"]["short"] != "NS" or jogo_id in enviados:
             continue
+        mensagem = formatar_jogo(jogo)
+        if mensagem:
+            bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
+            salvar_enviado(jogo_id)
+            time.sleep(2)
 
-        try:
-            mensagem = formatar_jogo(jogo)
-            if mensagem:
-                bot.send_message(chat_id=CHAT_ID, text=mensagem.encode('utf-8').decode('utf-8'), parse_mode="Markdown")
-                salvar_enviado(jogo_id)
-                novos += 1
-                time.sleep(2)
-        except Exception as e:
-            print(f"Erro ao enviar jogo {jogo_id}: {e}")
-            time.sleep(5)
-
-    if novos == 0:
-        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo com dados suficientes hoje.", parse_mode="Markdown")
+def verificar_resultados():
+    if not os.path.exists(ARQUIVO_RESULTADOS):
+        return
+    with open(ARQUIVO_RESULTADOS, "r") as f:
+        linhas = f.readlines()
+    for linha in linhas:
+        jogo_id, time_home, time_away, previsao = linha.strip().split(";")
+        url = f"https://v3.football.api-sports.io/fixtures?id={jogo_id}"
+        res = requests.get(url, headers=HEADERS).json()
+        if not res["response"]: continue
+        jogo = res["response"][0]
+        if jogo["fixture"]["status"]["short"] != "FT":
+            continue
+        gols_home = jogo["goals"]["home"]
+        gols_away = jogo["goals"]["away"]
+        acertos = []
+        if "Over 1.5" in previsao and (gols_home + gols_away) >= 2:
+            acertos.append("✅ Over 1.5")
+        if "Under 3.5" in previsao and (gols_home + gols_away) <= 3:
+            acertos.append("✅ Under 3.5")
+        if "Vitória provável: Mandante" in previsao and gols_home > gols_away:
+            acertos.append("✅ Mandante venceu")
+        if "Vitória provável: Visitante" in previsao and gols_away > gols_home:
+            acertos.append("✅ Visitante venceu")
+        texto = (
+            f"📊 *{time_home} x {time_away}* terminou {gols_home} x {gols_away}\n"
+            f"🎯 Previsões: {previsao}\n"
+            f"📌 Resultado: {' | '.join(acertos) if acertos else '❌ Nenhum palpite confirmado'}"
+        )
+        bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown")
 
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)
+        verificar_resultados()
+        time.sleep(14400)  # 4 horas
