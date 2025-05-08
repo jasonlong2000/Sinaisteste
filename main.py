@@ -60,7 +60,7 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
         return f"{g1} x {g2} ou {alternativa}"
     except:
         return "Indefinido"
-        def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
+def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                    clean_home, clean_away, first_goal_home, first_goal_away, shots_home, shots_away,
                    over25_home, over25_away, shots_on_home, shots_on_away,
                    gs_home, gs_away, over15_home, over15_away):
