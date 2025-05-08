@@ -57,10 +57,10 @@ def porcentagem_over(jogos, over):
         return round((over / jogos) * 100, 1)
     except:
         return 0
-    def gerar_sugestoes(stats_home, stats_away):
+def gerar_sugestoes(stats_home, stats_away):
     sugestoes = []
+
     try:
-        # Coleta de dados
         gm_home = float(stats_home["goals"]["for"]["average"]["total"])
         gm_away = float(stats_away["goals"]["for"]["average"]["total"])
         gs_home = float(stats_home["goals"]["against"]["average"]["total"])
@@ -71,34 +71,31 @@ def porcentagem_over(jogos, over):
         under35_home = stats_home["goals"]["for"]["under_over"]["3.5"]["under"]
         under35_away = stats_away["goals"]["for"]["under_over"]["3.5"]["under"]
 
-        jogos_home = int(stats_home["fixtures"]["played"]["total"])
-        jogos_away = int(stats_away["fixtures"]["played"]["total"])
-        total_jogos = jogos_home + jogos_away
+        jogos_home = stats_home["fixtures"]["played"]["total"]
+        jogos_away = stats_away["fixtures"]["played"]["total"]
 
         clean_home = stats_home["clean_sheet"]["total"]
         clean_away = stats_away["clean_sheet"]["total"]
+        fts_home = stats_home["failed_to_score"]["total"]
+        fts_away = stats_away["failed_to_score"]["total"]
 
-        failed_away = stats_away["failed_to_score"]["total"]
-
-        # Estratégia 1: Vitória provável
-        if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1 and failed_away >= 1:
+        # Vitória provável
+        if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1 and fts_away >= 1:
             sugestoes.append("🏆 Vitória provável: Mandante")
-        elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1 and stats_home["failed_to_score"]["total"] >= 1:
+        elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1 and fts_home >= 1:
             sugestoes.append("🏆 Vitória provável: Visitante")
 
-        # Estratégia 2: Over 1.5 gols
-        total_gols = gm_home + gm_away + gs_home + gs_away
-        if total_gols >= 6 and over15_home >= 2 and over15_away >= 2:
+        # Over 1.5
+        if (gm_home + gm_away + gs_home + gs_away) >= 6 and over15_home >= 2 and over15_away >= 2:
             sugestoes.append("⚽ Over 1.5 gols")
 
-        # Estratégia 3: Under 3.5 gols
+        # Under 3.5
         if gm_home <= 1.5 and gm_away <= 1.5 and under35_home == jogos_home and under35_away == jogos_away:
             sugestoes.append("🧤 Under 3.5 gols")
 
         return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
-
-    except Exception as e:
-        return f"Erro ao calcular sugestões: {e}"
+    except:
+        return "Erro ao gerar sugestão"
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -114,12 +111,9 @@ def formatar_jogo(jogo):
         print(f"⚠️ Dados ausentes: {home['name']} x {away['name']}")
         return None
 
-    try:
-        dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
-        data = dt.strftime("%d/%m")
-        hora = dt.strftime("%H:%M")
-    except:
-        data, hora = "-", "-"
+    dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
+    data = dt.strftime("%d/%m")
+    hora = dt.strftime("%H:%M")
 
     sugestoes = gerar_sugestoes(stats_home, stats_away)
 
@@ -161,4 +155,4 @@ def verificar_pre_jogos():
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # A cada 6 horas
+        time.sleep(21600)
