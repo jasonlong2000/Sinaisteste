@@ -59,7 +59,6 @@ def porcentagem_over(jogos, over):
         return 0
     def gerar_sugestoes(stats_home, stats_away):
     sugestoes = []
-
     try:
         # Coleta de dados
         gm_home = float(stats_home["goals"]["for"]["average"]["total"])
