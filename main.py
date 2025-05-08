@@ -90,41 +90,44 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
         shots_on_total = shots_on_home + shots_on_away
         btts_media = (btts_home + btts_away) / 2
 
-        print(\"DEBUG MÉTRICAS:\", {
-            \"Gols Esperados\": total_gols,
-            \"Over 1.5\": (over15_home, over15_away),
-            \"Over 2.5\": (over25_home, over25_away),
-            \"BTTS%\": btts_media,
-            \"Finalizações no Alvo\": shots_on_total
+        print("DEBUG:", {
+            "Gols Esperados": total_gols,
+            "Over 1.5": (over15_home, over15_away),
+            "Over 2.5": (over25_home, over25_away),
+            "BTTS%": btts_media,
+            "Finalizações no Alvo": shots_on_total
         })
 
         if over25_home >= 65 and over25_away >= 65 and total_gols >= 2.6 and btts_media >= 60 and shots_on_total >= 8:
-            sugestoes.append(\"⚽ Mais de 2.5 gols\")
+            sugestoes.append("⚽ Mais de 2.5 gols")
 
         if over15_home >= 70 and over15_away >= 70 and total_gols >= 2.0 and btts_media >= 60 and shots_on_total >= 7:
-            sugestoes.append(\"⚽ Mais de 1.5 gols\")
+            sugestoes.append("⚽ Mais de 1.5 gols")
 
         if shots_total >= 20:
-            sugestoes.append(\"🎯 Jogo com alta média de finalizações\")
+            sugestoes.append("🎯 Jogo com alta média de finalizações")
+
         if clean_home + clean_away >= 8:
-            sugestoes.append(\"🧤 Tendência de placar magro ou Under\")
+            sugestoes.append("🧤 Tendência de placar magro ou Under")
+
         if first_goal_home >= 60:
-            sugestoes.append(\"⚡ Mandante costuma marcar primeiro\")
+            sugestoes.append("⚡ Mandante costuma marcar primeiro")
         if first_goal_away >= 60:
-            sugestoes.append(\"⚡ Visitante costuma marcar primeiro\")
+            sugestoes.append("⚡ Visitante costuma marcar primeiro")
 
         if (gm_home >= 1.5 and gs_away >= 1.2 and first_goal_home >= 60 and clean_home >= 3 and
             gm_home - gm_away > 0.8 and gs_away - gs_home > 0.5):
-            sugestoes.append(\"🏆 Vitória provável: Mandante\")
+            sugestoes.append("🏆 Vitória provável: Mandante")
 
         elif (gm_away >= 1.5 and gs_home >= 1.2 and first_goal_away >= 60 and clean_away >= 3 and
               gm_away - gm_home > 0.8 and gs_home - gs_away > 0.5):
-            sugestoes.append(\"🏆 Vitória provável: Visitante\")
+            sugestoes.append("🏆 Vitória provável: Visitante")
 
-        return \"\\n\".join(sugestoes) if sugestoes else \"Sem sugestão clara\"
+        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
     except:
-        return \"Sem sugestão clara\"
-        def formatar_jogo(jogo):
+        return "Sem sugestão clara"
+
+def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
     league = jogo["league"]
@@ -180,7 +183,8 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
         f"🔢 *Placar provável:* {placar}\n\n"
         f"💡 *Sugestões de entrada:*\n{sugestoes}"
     )
-        def verificar_pre_jogos():
+
+def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
     novos = 0
@@ -216,4 +220,4 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
-        time.sleep(21600)  # Executa a cada 6 horas (21600 segundos)
+        time.sleep(21600)  # Executa a cada 6 horas
