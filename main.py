@@ -60,7 +60,6 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
         return f"{g1} x {g2} ou {alternativa}"
     except:
         return "Indefinido"
-
 def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                    clean_home, clean_away, first_goal_home, first_goal_away, shots_home, shots_away,
                    over25_home, over25_away, shots_on_home, shots_on_away,
@@ -82,19 +81,19 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         sugestoes = []
 
         if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1 and fts_away >= 1:
-            sugestoes.append("ð VitÃ³ria provÃ¡vel: Mandante")
+            sugestoes.append("🏆 Vitória provável: Mandante")
         elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1 and fts_home >= 1:
-            sugestoes.append("ð VitÃ³ria provÃ¡vel: Visitante")
+            sugestoes.append("🏆 Vitória provável: Visitante")
 
         if (gm_home + gm_away + gs_home + gs_away) >= 6 and over15_home >= 66 and over15_away >= 66:
-            sugestoes.append("â½ Over 1.5 gols")
+            sugestoes.append("⚽ Over 1.5 gols")
 
         if gm_home <= 1.5 and gm_away <= 1.5 and under35_home == 3 and under35_away == 3:
-            sugestoes.append("ð§¤ Under 3.5 gols")
+            sugestoes.append("🧤 Under 3.5 gols")
 
-        return "\n".join(sugestoes) if sugestoes else "Sem sugestÃ£o clara"
+        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
     except:
-        return "Sem sugestÃ£o clara"
+        return "Sem sugestão clara"
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -102,17 +101,6 @@ def formatar_jogo(jogo):
     league = jogo["league"]
     home = teams["home"]
     away = teams["away"]
-    nome_liga = f"{league['country']} - {league['name']}"
-
-    if nome_liga not in LIGAS_PERMITIDAS:
-        return None
-
-    try:
-        dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
-        data = dt.strftime("%d/%m")
-        hora = dt.strftime("%H:%M")
-    except:
-        data, hora = "-", "-"
 
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
@@ -143,14 +131,14 @@ def formatar_jogo(jogo):
                                gs_home, gs_away, over15_home, over15_away)
 
     return (
-        f"â½ *{home['name']} x {away['name']}*\n"
-        f"ð {league['name']}\n"
-        f"ð {data} | ð {hora}\n"
-        f"ð Status: {fixture['status']['short']}\n\n"
-        f"ð¯ *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
-        f"â *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
-        f"ð¢ *Placar provÃ¡vel:* {placar}\n\n"
-        f"ð¡ *SugestÃµes de entrada:*\n{sugestoes}"
+        f"⚽ *{home['name']} x {away['name']}*\n"
+        f"🌍 {league['name']}\n"
+        f"📅 {datetime.utcfromtimestamp(fixture['timestamp']).astimezone(pytz.timezone('America/Sao_Paulo')).strftime('%d/%m')} | 🕒 {datetime.utcfromtimestamp(fixture['timestamp']).astimezone(pytz.timezone('America/Sao_Paulo')).strftime('%H:%M')}\n"
+        f"📌 Status: {fixture['status']['short']}\n\n"
+        f"🎯 *Gols esperados:* {home['name']}: {gm_home} | {away['name']}: {gm_away}\n"
+        f"❌ *Gols sofridos:* {home['name']}: {gs_home} | {away['name']}: {gs_away}\n"
+        f"🔢 *Placar provável:* {placar}\n\n"
+        f"💡 *Sugestões de entrada:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
@@ -169,7 +157,7 @@ def verificar_pre_jogos():
         try:
             mensagem = formatar_jogo(jogo)
             if mensagem:
-                bot.send_message(chat_id=CHAT_ID, text=mensagem, parse_mode="Markdown")
+                bot.send_message(chat_id=CHAT_ID, text=mensagem.encode('utf-8').decode('utf-8'), parse_mode="Markdown")
                 salvar_enviado(jogo_id)
                 novos += 1
                 time.sleep(2)
@@ -178,7 +166,7 @@ def verificar_pre_jogos():
             time.sleep(5)
 
     if novos == 0:
-        bot.send_message(chat_id=CHAT_ID, text="â ï¸ Nenhum jogo novo com dados suficientes hoje.", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo com dados suficientes hoje.", parse_mode="Markdown")
 
 if __name__ == "__main__":
     while True:
