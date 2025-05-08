@@ -52,11 +52,6 @@ def buscar_estatisticas(league_id, season, team_id):
 def formatar_valor(v):
     return str(v) if v not in [None, "-", ""] else "0"
 
-def porcentagem_over(jogos, over):
-    try:
-        return round((over / jogos) * 100, 1)
-    except:
-        return 0
 def gerar_sugestoes(stats_home, stats_away):
     sugestoes = []
 
@@ -79,23 +74,23 @@ def gerar_sugestoes(stats_home, stats_away):
         fts_home = stats_home["failed_to_score"]["total"]
         fts_away = stats_away["failed_to_score"]["total"]
 
-        # Vitória provável
+        # VitÃ³ria provÃ¡vel
         if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1 and fts_away >= 1:
-            sugestoes.append("🏆 Vitória provável: Mandante")
+            sugestoes.append("ð VitÃ³ria provÃ¡vel: Mandante")
         elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1 and fts_home >= 1:
-            sugestoes.append("🏆 Vitória provável: Visitante")
+            sugestoes.append("ð VitÃ³ria provÃ¡vel: Visitante")
 
         # Over 1.5
         if (gm_home + gm_away + gs_home + gs_away) >= 6 and over15_home >= 2 and over15_away >= 2:
-            sugestoes.append("⚽ Over 1.5 gols")
+            sugestoes.append("â½ Over 1.5 gols")
 
         # Under 3.5
         if gm_home <= 1.5 and gm_away <= 1.5 and under35_home == jogos_home and under35_away == jogos_away:
-            sugestoes.append("🧤 Under 3.5 gols")
+            sugestoes.append("ð§¤ Under 3.5 gols")
 
-        return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+        return "\n".join(sugestoes) if sugestoes else "Sem sugestÃ£o clara"
     except:
-        return "Erro ao gerar sugestão"
+        return "Erro ao gerar sugestÃ£o"
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -108,7 +103,7 @@ def formatar_jogo(jogo):
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
     if not stats_home or not stats_away:
-        print(f"⚠️ Dados ausentes: {home['name']} x {away['name']}")
+        print(f"â ï¸ Dados ausentes: {home['name']} x {away['name']}")
         return None
 
     dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
@@ -118,11 +113,11 @@ def formatar_jogo(jogo):
     sugestoes = gerar_sugestoes(stats_home, stats_away)
 
     return (
-        f"⚽ *{home['name']} x {away['name']}*\n"
-        f"🌍 {league['name']}\n"
-        f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n\n"
-        f"💡 *Sugestões de entrada:*\n{sugestoes}"
+        f"â½ *{home['name']} x {away['name']}*\n"
+        f"ð {league['name']}\n"
+        f"ð {data} | ð {hora}\n"
+        f"ð Status: {fixture['status']['short']}\n\n"
+        f"ð¡ *SugestÃµes de entrada:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
@@ -150,7 +145,7 @@ def verificar_pre_jogos():
             time.sleep(5)
 
     if novos == 0:
-        bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo com dados suficientes hoje.", parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text="â ï¸ Nenhum jogo novo com dados suficientes hoje.", parse_mode="Markdown")
 
 if __name__ == "__main__":
     while True:
