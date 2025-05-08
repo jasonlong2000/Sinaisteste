@@ -88,6 +88,16 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         sugestoes = []
         total_gols = gm_home + gm_away
 
+        print("DEBUG MÉTRICAS:", {
+            "gm_home": gm_home,
+            "gm_away": gm_away,
+            "over15_home": over15_home,
+            "over15_away": over15_away,
+            "btts_home": btts_home,
+            "btts_away": btts_away,
+            "shots_on": shots_on_home + shots_on_away
+        })
+
         if over25_home >= 65 and over25_away >= 65 and total_gols >= 2.6 and (btts_home + btts_away)/2 >= 60 and shots_on_home + shots_on_away >= 8:
             sugestoes.append("⚽ Mais de 2.5 gols")
 
