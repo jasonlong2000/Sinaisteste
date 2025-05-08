@@ -61,7 +61,8 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
     except:
         return "Indefinido"
 
-def gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, card_home, card_away):
+def gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, card_home, card_away,
+                   clean_home, clean_away, first_goal_home, first_goal_away, shots_home, shots_away):
     try:
         gm_home = float(gm_home)
         gm_away = float(gm_away)
@@ -71,9 +72,16 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, c
         esc_away = float(esc_away)
         card_home = float(card_home)
         card_away = float(card_away)
+        clean_home = int(clean_home)
+        clean_away = int(clean_away)
+        first_goal_home = float(first_goal_home.strip('%'))
+        first_goal_away = float(first_goal_away.strip('%'))
+        shots_home = float(shots_home)
+        shots_away = float(shots_away)
 
         sugestoes = []
         total_gols = gm_home + gm_away
+
         if total_gols >= 3.0:
             sugestoes.append("⚽ Mais de 2.5 gols")
         if total_gols >= 1.5:
@@ -86,6 +94,14 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, c
             sugestoes.append("🚩 Mais de 8.5 escanteios")
         if card_home + card_away >= 4:
             sugestoes.append("🟨 Jogo com mais de 3.5 cartões")
+        if shots_home + shots_away >= 20:
+            sugestoes.append("🎯 Jogo com alta média de finalizações")
+        if clean_home + clean_away >= 8:
+            sugestoes.append("🧤 Tendência de placar magro ou Under")
+        if first_goal_home >= 60:
+            sugestoes.append("⚡ Mandante costuma marcar primeiro")
+        if first_goal_away >= 60:
+            sugestoes.append("⚡ Visitante costuma marcar primeiro")
         if gm_home > gm_away:
             sugestoes.append("🏆 Vitória provável: Mandante")
         elif gm_away > gm_home:
@@ -126,9 +142,17 @@ def formatar_jogo(jogo):
     esc_away = formatar_valor(stats_away.get("corners", {}).get("average", {}).get("total"))
     card_home = formatar_valor(stats_home.get("cards", {}).get("yellow", {}).get("average", {}).get("total"))
     card_away = formatar_valor(stats_away.get("cards", {}).get("yellow", {}).get("average", {}).get("total"))
+    clean_home = formatar_valor(stats_home.get("clean_sheet", {}).get("total", "0"))
+    clean_away = formatar_valor(stats_away.get("clean_sheet", {}).get("total", "0"))
+    first_goal_home = stats_home.get("first_goal", {}).get("for", {}).get("percentage", "0")
+    first_goal_away = stats_away.get("first_goal", {}).get("for", {}).get("percentage", "0")
+    shots_home = formatar_valor(stats_home.get("shots", {}).get("total", {}).get("average", {}).get("total", "0"))
+    shots_away = formatar_valor(stats_away.get("shots", {}).get("total", {}).get("average", {}).get("total", "0"))
 
     placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
-    sugestoes = gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away, card_home, card_away)
+    sugestoes = gerar_sugestao(gm_home, gm_away, btts_home, btts_away, esc_home, esc_away,
+                               card_home, card_away, clean_home, clean_away,
+                               first_goal_home, first_goal_away, shots_home, shots_away)
 
     return (
         f"⚽ *{home['name']} x {away['name']}*\n"
