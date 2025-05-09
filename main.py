@@ -80,36 +80,56 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         clean_away = int(clean_away)
 
         alta_conf = []
+        media_conf = []
         soma_gols = gm_home + gm_away + gs_home + gs_away
         btts_media = (btts_home + btts_away) / 2
         soma_ataque = gm_home + gm_away
 
+        # Estratégias
         if gm_home >= 1.6 and gs_away >= 1.6 and clean_home >= 2:
-            alta_conf.append("🏆 Vitória provável: Mandante")
+            alta_conf.append("🏆 Vitória provável: Mandante (alta)")
+        elif gm_home >= 1.4 and gs_away >= 1.4:
+            media_conf.append("🏆 Vitória provável: Mandante (média)")
+
         if gm_away >= 1.6 and gs_home >= 1.6 and clean_away >= 2:
-            alta_conf.append("🏆 Vitória provável: Visitante")
+            alta_conf.append("🏆 Vitória provável: Visitante (alta)")
+        elif gm_away >= 1.4 and gs_home >= 1.4:
+            media_conf.append("🏆 Vitória provável: Visitante (média)")
 
         if over15_home >= 70 and over15_away >= 70 and soma_gols >= 6:
-            alta_conf.append("⚽ Over 1.5 gols")
+            alta_conf.append("⚽ Over 1.5 gols (alta)")
+        elif over15_home >= 65 and over15_away >= 65 and soma_gols >= 5:
+            media_conf.append("⚽ Over 1.5 gols (média)")
 
         under35_home = 3 - over25_home / 100 * 3
         under35_away = 3 - over25_away / 100 * 3
         if gm_home <= 1.0 and gm_away <= 1.0 and under35_home == 3 and under35_away == 3:
-            alta_conf.append("🧤 Under 3.5 gols")
+            alta_conf.append("🧤 Under 3.5 gols (alta)")
+        elif gm_home <= 1.3 and gm_away <= 1.3 and under35_home >= 2.5 and under35_away >= 2.5:
+            media_conf.append("🧤 Under 3.5 gols (média)")
 
         if btts_media >= 65 and gm_home >= 1.2 and gm_away >= 1.2:
-            alta_conf.append("✅ Ambas Marcam (BTTS)")
+            alta_conf.append("✅ Ambas Marcam (alta)")
+        elif btts_media >= 60 and gm_home >= 1.0 and gm_away >= 1.0:
+            media_conf.append("✅ Ambas Marcam (média)")
 
         if soma_ataque >= 3.0 and gs_home >= 1.2 and gs_away >= 1.2:
-            alta_conf.append("🔥 Tendência Over 2.5")
+            alta_conf.append("🔥 Over 2.5 (alta)")
+        elif soma_ataque >= 2.7 and gs_home >= 1.0 and gs_away >= 1.0:
+            media_conf.append("🔥 Over 2.5 (média)")
 
         faixas = ["0-15", "16-30", "31-45"]
         gols_ht_home = sum(1 for faixa in faixas if minutos_home.get(faixa, {}).get("total"))
         gols_ht_away = sum(1 for faixa in faixas if minutos_away.get(faixa, {}).get("total"))
         if gols_ht_home >= 2 and gols_ht_away >= 2 and fg_home >= 60:
-            alta_conf.append("⏱️ Gol no 1º tempo (alta confiança)")
+            alta_conf.append("⏱️ Gol no 1º tempo (alta)")
+        elif gols_ht_home >= 1 and gols_ht_away >= 1 and fg_home >= 50:
+            media_conf.append("⏱️ Gol no 1º tempo (média)")
 
-        return "\n".join(alta_conf) if alta_conf else "Sem sugestão clara"
+        if alta_conf or media_conf:
+            return "\n".join(alta_conf + media_conf)
+        else:
+            return "Sem sugestão clara"
     except:
         return "Sem sugestão clara"
 def formatar_jogo(jogo):
@@ -160,7 +180,7 @@ def formatar_jogo(jogo):
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
         f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Entradas seguras:* \n{sugestoes}"
+        f"💡 *Sugestões:*\n{sugestoes}"
     )
 
 def verificar_pre_jogos():
@@ -180,11 +200,12 @@ def verificar_pre_jogos():
 def verificar_resultados():
     if not os.path.exists(ARQUIVO_RESULTADOS):
         return
+
     with open(ARQUIVO_RESULTADOS, "r") as f:
         linhas = f.readlines()
 
-    total = 0
-    acertos_totais = 0
+    alto_total = alto_green = 0
+    medio_total = medio_green = 0
 
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
@@ -198,43 +219,51 @@ def verificar_resultados():
 
         gols_home = jogo["goals"]["home"]
         gols_away = jogo["goals"]["away"]
-        total += 1
-        acertos = []
 
-        if "Over 1.5" in previsao and (gols_home + gols_away) >= 2:
-            acertos.append("✅ Over 1.5")
-        if "Under 3.5" in previsao and (gols_home + gols_away) <= 3:
-            acertos.append("✅ Under 3.5")
-        if "Vitória provável: Mandante" in previsao and gols_home > gols_away:
-            acertos.append("✅ Mandante venceu")
-        if "Vitória provável: Visitante" in previsao and gols_away > gols_home:
-            acertos.append("✅ Visitante venceu")
-        if "Ambas Marcam" in previsao and gols_home > 0 and gols_away > 0:
-            acertos.append("✅ Ambas Marcam")
-        if "Over 2.5" in previsao and (gols_home + gols_away) > 2:
-            acertos.append("✅ Over 2.5")
-        if "Gol no 1º tempo" in previsao and (gols_home + gols_away) > 0:
-            acertos.append("✅ Gol no 1º tempo")
+        entradas = previsao.split(" | ")
+        resultado = []
 
-        if acertos:
-            acertos_totais += 1
+        for entrada in entradas:
+            tipo = "alto" if "(alta" in entrada else "medio"
+            acertou = False
 
-        texto = (
+            if "Over 1.5" in entrada and (gols_home + gols_away) >= 2:
+                acertou = True
+            if "Under 3.5" in entrada and (gols_home + gols_away) <= 3:
+                acertou = True
+            if "Vitória provável: Mandante" in entrada and gols_home > gols_away:
+                acertou = True
+            if "Vitória provável: Visitante" in entrada and gols_away > gols_home:
+                acertou = True
+            if "Ambas Marcam" in entrada and gols_home > 0 and gols_away > 0:
+                acertou = True
+            if "Over 2.5" in entrada and (gols_home + gols_away) > 2:
+                acertou = True
+            if "Gol no 1º tempo" in entrada and (gols_home + gols_away) > 0:
+                acertou = True
+
+            if tipo == "alto":
+                alto_total += 1
+                if acertou: alto_green += 1
+            elif tipo == "medio":
+                medio_total += 1
+                if acertou: medio_green += 1
+
+            resultado.append(f"{'✅' if acertou else '❌'} {entrada}")
+
+        resumo = (
             f"📊 *{time_home} x {time_away}* terminou {gols_home} x {gols_away}\n"
-            f"🎯 Previsões: {previsao}\n"
-            f"📌 Resultado: {' | '.join(acertos) if acertos else '❌ Nenhum palpite confirmado'}"
+            f"🎯 Previsões:\n" + "\n".join(resultado)
         )
-        bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text=resumo, parse_mode="Markdown")
 
-    if total > 0:
-        bot.send_message(
-            chat_id=CHAT_ID,
-            text=f"📈 *Resumo:* {acertos_totais} de {total} palpites confirmados!",
-            parse_mode="Markdown"
-        )
+    final = f"📈 *Resumo final:*\n"
+    final += f"⭐ Risco alto: {alto_green}/{alto_total} green\n" if alto_total else ""
+    final += f"⚠️ Risco médio: {medio_green}/{medio_total} green" if medio_total else ""
+    bot.send_message(chat_id=CHAT_ID, text=final, parse_mode="Markdown")
 
 if __name__ == "__main__":
     while True:
         verificar_pre_jogos()
         verificar_resultados()
-        time.sleep(14400)  # Executa a cada 4 horas
+        time.sleep(14400)
