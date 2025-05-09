@@ -15,10 +15,8 @@ ARQUIVO_RESULTADOS = "resultados_pendentes.txt"
 bot = Bot(token=BOT_TOKEN)
 
 LIGAS_PERMITIDAS = {
-    2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 14, 16, 17, 19,
-    39, 40, 41, 46, 61, 66, 67, 71, 72, 73, 78, 94, 135,
-    140, 143, 144, 210, 212, 253, 525, 530, 531,
-    848, 1003, 1007
+    2, 3, 4, 5, 9, 11, 13, 15, 32, 39, 40, 41, 48, 61, 62,
+    66, 71, 72, 73, 75, 78, 79, 135, 140, 143, 145, 477, 484, 541, 556, 742, 866
 }
 
 HEADERS = {"x-apisports-key": API_KEY}
@@ -85,7 +83,6 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         btts_media = (btts_home + btts_away) / 2
         soma_ataque = gm_home + gm_away
 
-        # Estratégias
         if gm_home >= 1.6 and gs_away >= 1.6 and clean_home >= 2:
             alta_conf.append("🏆 Vitória provável: Mandante (alta)")
         elif gm_home >= 1.4 and gs_away >= 1.4:
