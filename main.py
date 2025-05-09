@@ -62,7 +62,8 @@ def sugestao_de_placar(gm1, gm2, gs1, gs2):
 
 def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                    clean_home, clean_away, first_goal_home, first_goal_away,
-                   gs_home, gs_away, over15_home, over15_away, over25_home, over25_away):
+                   gs_home, gs_away, over15_home, over15_away, over25_home, over25_away,
+                   minutos_home, minutos_away):
     try:
         gm_home = float(gm_home)
         gm_away = float(gm_away)
@@ -101,6 +102,13 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         if soma_ataque >= 3.0 and gs_home >= 1.2 and gs_away >= 1.2:
             alta_conf.append("🔥 Tendência Over 2.5")
 
+        # Gol no 1º tempo
+        faixas = ["0-15", "16-30", "31-45"]
+        gols_ht_home = sum(1 for faixa in faixas if minutos_home.get(faixa, {}).get("total"))
+        gols_ht_away = sum(1 for faixa in faixas if minutos_away.get(faixa, {}).get("total"))
+        if gols_ht_home >= 2 and gols_ht_away >= 2:
+            alta_conf.append("⏱️ Gol no 1º tempo (alta confiança)")
+
         if len(alta_conf) >= 2:
             return "\n".join(alta_conf)
         else:
@@ -135,11 +143,14 @@ def formatar_jogo(jogo):
     over25_away = stats_away.get("goals", {}).get("average", {}).get("over_25", "0")
     over15_home = stats_home.get("goals", {}).get("average", {}).get("over_15", "0")
     over15_away = stats_away.get("goals", {}).get("average", {}).get("over_15", "0")
+    minutos_home = stats_home.get("goals", {}).get("for", {}).get("minute", {})
+    minutos_away = stats_away.get("goals", {}).get("against", {}).get("minute", {})
 
     placar = sugestao_de_placar(gm_home, gm_away, gs_home, gs_away)
     sugestoes = gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                                clean_home, clean_away, first_goal_home, first_goal_away,
-                               gs_home, gs_away, over15_home, over15_away, over25_home, over25_away)
+                               gs_home, gs_away, over15_home, over15_away,
+                               over25_home, over25_away, minutos_home, minutos_away)
 
     if "Sem sugestão clara" in sugestoes:
         return None
@@ -209,6 +220,8 @@ def verificar_resultados():
             acertos.append("✅ Ambas Marcam")
         if "Over 2.5" in previsao and (gols_home + gols_away) > 2:
             acertos.append("✅ Over 2.5")
+        if "Gol no 1º tempo" in previsao and (gols_home + gols_away) > 0:
+            acertos.append("✅ Gol no 1º tempo")
 
         if acertos:
             acertos_totais += 1
