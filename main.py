@@ -75,6 +75,7 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         over25_away = float(over25_away.strip('%'))
         btts_home = float(btts_home.strip('%'))
         btts_away = float(btts_away.strip('%'))
+        fg_home = float(first_goal_home.strip('%'))
         clean_home = int(clean_home)
         clean_away = int(clean_away)
 
@@ -102,15 +103,13 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         if soma_ataque >= 3.0 and gs_home >= 1.2 and gs_away >= 1.2:
             alta_conf.append("🔥 Tendência Over 2.5")
 
-        # Gol no 1º tempo (HT)
         faixas = ["0-15", "16-30", "31-45"]
         gols_ht_home = sum(1 for faixa in faixas if minutos_home.get(faixa, {}).get("total"))
         gols_ht_away = sum(1 for faixa in faixas if minutos_away.get(faixa, {}).get("total"))
-        if gols_ht_home >= 2 and gols_ht_away >= 2:
+        if gols_ht_home >= 2 and gols_ht_away >= 2 and fg_home >= 60:
             alta_conf.append("⏱️ Gol no 1º tempo (alta confiança)")
 
         return "\n".join(alta_conf) if alta_conf else "Sem sugestão clara"
-
     except:
         return "Sem sugestão clara"
 def formatar_jogo(jogo):
