@@ -102,17 +102,14 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         if soma_ataque >= 3.0 and gs_home >= 1.2 and gs_away >= 1.2:
             alta_conf.append("🔥 Tendência Over 2.5")
 
-        # Gol no 1º tempo
+        # Gol no 1º tempo (HT)
         faixas = ["0-15", "16-30", "31-45"]
         gols_ht_home = sum(1 for faixa in faixas if minutos_home.get(faixa, {}).get("total"))
         gols_ht_away = sum(1 for faixa in faixas if minutos_away.get(faixa, {}).get("total"))
         if gols_ht_home >= 2 and gols_ht_away >= 2:
             alta_conf.append("⏱️ Gol no 1º tempo (alta confiança)")
 
-        if len(alta_conf) >= 2:
-            return "\n".join(alta_conf)
-        else:
-            return "Sem sugestão clara"
+        return "\n".join(alta_conf) if alta_conf else "Sem sugestão clara"
 
     except:
         return "Sem sugestão clara"
@@ -152,9 +149,6 @@ def formatar_jogo(jogo):
                                gs_home, gs_away, over15_home, over15_away,
                                over25_home, over25_away, minutos_home, minutos_away)
 
-    if "Sem sugestão clara" in sugestoes:
-        return None
-
     salvar_resultado_previsto(fixture["id"], home["name"], away["name"], sugestoes.replace("\n", " | "))
 
     dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
@@ -167,7 +161,7 @@ def formatar_jogo(jogo):
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
         f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Entradas seguras:*\n{sugestoes}"
+        f"💡 *Entradas seguras:* \n{sugestoes}"
     )
 
 def verificar_pre_jogos():
