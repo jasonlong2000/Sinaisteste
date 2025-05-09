@@ -70,25 +70,41 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         gs_away = float(gs_away)
         over15_home = float(over15_home.strip('%'))
         over15_away = float(over15_away.strip('%'))
-        under35_home = 3 - float(over25_home.strip('%')) / 100 * 3
-        under35_away = 3 - float(over25_away.strip('%')) / 100 * 3
+        over25_home = float(over25_home.strip('%'))
+        over25_away = float(over25_away.strip('%'))
+        btts_home = float(btts_home.strip('%'))
+        btts_away = float(btts_away.strip('%'))
         clean_home = int(clean_home)
         clean_away = int(clean_away)
 
         sugestoes = []
 
+        # Vitória provável
         if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1:
             sugestoes.append("🏆 Vitória provável: Mandante")
         elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1:
             sugestoes.append("🏆 Vitória provável: Visitante")
 
+        # Over 1.5
         if (gm_home + gm_away + gs_home + gs_away) >= 6 and over15_home >= 66 and over15_away >= 66:
             sugestoes.append("⚽ Over 1.5 gols")
 
+        # Under 3.5
+        under35_home = 3 - over25_home / 100 * 3
+        under35_away = 3 - over25_away / 100 * 3
         if gm_home <= 1.5 and gm_away <= 1.5 and under35_home == 3 and under35_away == 3:
             sugestoes.append("🧤 Under 3.5 gols")
 
+        # Ambas Marcam
+        if (btts_home + btts_away) / 2 >= 60 and gm_home >= 1.0 and gm_away >= 1.0:
+            sugestoes.append("✅ Ambas Marcam (BTTS)")
+
+        # Tendência de Over 2.5
+        if (gm_home + gm_away) >= 2.8 and gs_home >= 1.2 and gs_away >= 1.2:
+            sugestoes.append("🔥 Tendência de Over 2.5")
+
         return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
+
     except:
         return "Sem sugestão clara"
 def formatar_jogo(jogo):
@@ -178,6 +194,11 @@ def verificar_resultados():
             acertos.append("✅ Mandante venceu")
         if "Vitória provável: Visitante" in previsao and gols_away > gols_home:
             acertos.append("✅ Visitante venceu")
+        if "Ambas Marcam" in previsao and gols_home > 0 and gols_away > 0:
+            acertos.append("✅ Ambas Marcam")
+        if "Over 2.5" in previsao and (gols_home + gols_away) > 2:
+            acertos.append("✅ Over 2.5")
+
         texto = (
             f"📊 *{time_home} x {time_away}* terminou {gols_home} x {gols_away}\n"
             f"🎯 Previsões: {previsao}\n"
