@@ -19,7 +19,7 @@ LIGAS_PERMITIDAS = {
     39, 40, 41, 46, 61, 66, 67, 71, 72, 73, 78, 94, 135,
     140, 143, 144, 210, 212, 253, 525, 530, 531,
     848, 1003, 1007
-}  # Removidos: Süper Lig (203) e 3. Lig (206)
+}
 
 HEADERS = {"x-apisports-key": API_KEY}
 
@@ -78,25 +78,41 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         clean_away = int(clean_away)
 
         sugestoes = []
+        soma_gols = gm_home + gm_away + gs_home + gs_away
+        btts_media = (btts_home + btts_away) / 2
+        soma_ataque = gm_home + gm_away
 
-        if gm_home >= 1.5 and gs_away >= 1.5 and clean_home >= 1:
-            sugestoes.append("🏆 Vitória provável: Mandante")
-        elif gm_away >= 1.5 and gs_home >= 1.5 and clean_away >= 1:
-            sugestoes.append("🏆 Vitória provável: Visitante")
+        if gm_home >= 1.6 and gs_away >= 1.6 and clean_home >= 2:
+            sugestoes.append("⭐ Vitória provável: Mandante (alta confiança)")
+        elif gm_home >= 1.4 and gs_away >= 1.4 and clean_home >= 1:
+            sugestoes.append("⚠️ Vitória provável: Mandante (média)")
 
-        if (gm_home + gm_away + gs_home + gs_away) >= 6 and over15_home >= 66 and over15_away >= 66:
-            sugestoes.append("⚽ Over 1.5 gols")
+        if gm_away >= 1.6 and gs_home >= 1.6 and clean_away >= 2:
+            sugestoes.append("⭐ Vitória provável: Visitante (alta confiança)")
+        elif gm_away >= 1.4 and gs_home >= 1.4 and clean_away >= 1:
+            sugestoes.append("⚠️ Vitória provável: Visitante (média)")
+
+        if over15_home >= 70 and over15_away >= 70 and soma_gols >= 6:
+            sugestoes.append("⭐ Over 1.5 gols (alta confiança)")
+        elif over15_home >= 65 and over15_away >= 65 and soma_gols >= 5:
+            sugestoes.append("⚠️ Over 1.5 gols (média)")
 
         under35_home = 3 - over25_home / 100 * 3
         under35_away = 3 - over25_away / 100 * 3
-        if gm_home <= 1.5 and gm_away <= 1.5 and under35_home == 3 and under35_away == 3:
-            sugestoes.append("🧤 Under 3.5 gols")
+        if gm_home <= 1.0 and gm_away <= 1.0 and under35_home == 3 and under35_away == 3:
+            sugestoes.append("⭐ Under 3.5 gols (alta confiança)")
+        elif gm_home <= 1.3 and gm_away <= 1.3 and under35_home >= 2.5 and under35_away >= 2.5:
+            sugestoes.append("⚠️ Under 3.5 gols (média)")
 
-        if (btts_home + btts_away) / 2 >= 60 and gm_home >= 1.0 and gm_away >= 1.0:
-            sugestoes.append("✅ Ambas Marcam (BTTS)")
+        if btts_media >= 65 and gm_home >= 1.2 and gm_away >= 1.2:
+            sugestoes.append("⭐ Ambas Marcam (alta confiança)")
+        elif btts_media >= 60 and gm_home >= 1.0 and gm_away >= 1.0:
+            sugestoes.append("⚠️ Ambas Marcam (média)")
 
-        if (gm_home + gm_away) >= 2.8 and gs_home >= 1.2 and gs_away >= 1.2:
-            sugestoes.append("🔥 Tendência de Over 2.5")
+        if soma_ataque >= 3.0 and gs_home >= 1.2 and gs_away >= 1.2:
+            sugestoes.append("⭐ Tendência Over 2.5 (alta confiança)")
+        elif soma_ataque >= 2.7 and gs_home >= 1.0 and gs_away >= 1.0:
+            sugestoes.append("⚠️ Tendência Over 2.5 (média)")
 
         return "\n".join(sugestoes) if sugestoes else "Sem sugestão clara"
 
@@ -211,7 +227,6 @@ def verificar_resultados():
         )
         bot.send_message(chat_id=CHAT_ID, text=texto, parse_mode="Markdown")
 
-    # Envia resumo da rodada
     if total > 0:
         bot.send_message(
             chat_id=CHAT_ID,
