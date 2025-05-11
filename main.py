@@ -49,6 +49,15 @@ def buscar_estatisticas(league_id, season, team_id):
 def formatar_valor(v):
     return str(v) if v not in [None, "-", ""] else "0"
 
+def sugestao_de_placar(gm1, gm2, gs1, gs2):
+    try:
+        g1 = round((float(gm1) + float(gs2)) / 2)
+        g2 = round((float(gm2) + float(gs1)) / 2)
+        alternativa = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
+        return f"{g1} x {g2} ou {alternativa}"
+    except:
+        return "Indefinido"
+
 def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
                    clean_home, clean_away, first_goal_home, first_goal_away,
                    gs_home, gs_away, over15_home, over15_away, over25_home, over25_away,
@@ -74,7 +83,7 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
         soma_defesa = gs_home + gs_away
         btts_media = (btts_home + btts_away) / 2
 
-        # Dupla Chance — apenas a de maior probabilidade
+        # Dupla Chance (prioriza uma)
         diff = gm_home - gm_away
         if diff >= 0.2 and gs_away >= 1.1:
             if gm_home >= 1.3:
@@ -87,12 +96,13 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
             elif gm_away >= 1.1:
                 media_conf.append("🔐 Dupla chance: X2 (média)")
 
-        # Over 1.5 — novos critérios
+        # Over 1.5 (ajustado)
         if soma_ataque >= 2.5 and soma_defesa >= 1.5:
             alta_conf.append("⚽ Over 1.5 gols (alta)")
         elif soma_ataque >= 2.0 and soma_defesa >= 1.0:
             media_conf.append("⚠️ Over 1.5 gols (média)")
 
+        # Continuação (Under 3.5, BTTS, Gol no 1º tempo...) vem na Parte 2
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
 
     except:
