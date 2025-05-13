@@ -104,38 +104,9 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
 
         # Continuação (Under 3.5, BTTS, Gol no 1º tempo...) vem na Parte 2
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
+
     except:
         return "Sem sugestão clara"
-        # Under 3.5
-        under35_home = 3 - over25_home / 100 * 3
-        under35_away = 3 - over25_away / 100 * 3
-        if gm_home <= 1.0 and gm_away <= 1.0 and under35_home == 3 and under35_away == 3:
-            alta_conf.append("🧤 Under 3.5 gols (alta)")
-        elif gm_home <= 1.3 and gm_away <= 1.3 and under35_home >= 2.5 and under35_away >= 2.5:
-            media_conf.append("🧤 Under 3.5 gols (média)")
-
-        # Ambas Marcam
-        if btts_media >= 65 and gm_home >= 1.2 and gm_away >= 1.2:
-            alta_conf.append("✅ Ambas Marcam (alta)")
-        elif btts_media >= 60 and gm_home >= 1.0 and gm_away >= 1.0:
-            media_conf.append("✅ Ambas Marcam (média)")
-
-        # Gol no 1º tempo
-        faixas = ["0-15", "16-30", "31-45"]
-        gols_ht_home = sum(1 for faixa in faixas if minutos_home.get(faixa, {}).get("total"))
-        gols_ht_away = sum(1 for faixa in faixas if minutos_away.get(faixa, {}).get("total"))
-        if gols_ht_home >= 2 and gols_ht_away >= 2 and fg_home >= 60:
-            alta_conf.append("⏱️ Gol no 1º tempo (alta)")
-        elif gols_ht_home >= 1 and gols_ht_away >= 1 and fg_home >= 50:
-            media_conf.append("⏱️ Gol no 1º tempo (média)")
-
-        if alta_conf or media_conf:
-            return "\n".join(alta_conf + media_conf)
-        else:
-            return "Sem sugestão clara"
-    except:
-        return "Sem sugestão clara"
-
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
