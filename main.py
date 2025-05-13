@@ -104,7 +104,6 @@ def gerar_sugestao(gm_home, gm_away, btts_home, btts_away,
 
         # Continuação (Under 3.5, BTTS, Gol no 1º tempo...) vem na Parte 2
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
-
     except:
         return "Sem sugestão clara"
         # Under 3.5
