@@ -96,19 +96,15 @@ def formatar_jogo(jogo):
     )
 def gerar_sugestao(stats_home, stats_away):
     try:
-        # Dados gerais
         gm_home = float(stats_home["goals"]["for"]["average"]["total"])
         gm_away = float(stats_away["goals"]["for"]["average"]["total"])
         gs_home = float(stats_home["goals"]["against"]["average"]["total"])
         gs_away = float(stats_away["goals"]["against"]["average"]["total"])
         clean_home = int(stats_home["clean_sheet"]["total"])
         clean_away = int(stats_away["clean_sheet"]["total"])
-        btts_home = float(stats_home["both_teams_to_score"]["percentage"].strip('%'))
-        btts_away = float(stats_away["both_teams_to_score"]["percentage"].strip('%'))
         shots_on_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
         shots_on_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
 
-        # Dados por local
         wins_home = stats_home.get("fixtures", {}).get("wins", {}).get("home", 0)
         wins_away = stats_away.get("fixtures", {}).get("wins", {}).get("away", 0)
         gols_home_casa = float(stats_home["goals"]["for"]["average"].get("home", 0))
@@ -119,20 +115,17 @@ def gerar_sugestao(stats_home, stats_away):
         alta_conf = []
         media_conf = []
 
-        # Under 3.5 - Alta
+        # Under 3.5
         if gm_home + gm_away <= 2.4 and gs_home + gs_away <= 2.0 and (shots_on_home + shots_on_away) < 6:
             alta_conf.append("🧤 Under 3.5 gols (alta)")
-        # Under 3.5 - Média
-        if gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_on_home + shots_on_away) < 8:
+        elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_on_home + shots_on_away) < 8:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
-        # Dupla Chance - 1X
+        # Dupla Chance
         if wins_home >= 3 and gols_home_casa >= 1.5 and sofre_home_casa < 1.0 and sofre_away_fora >= 1.5:
             alta_conf.append("🔐 Dupla chance: 1X (alta)")
         elif wins_home >= 2 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
             media_conf.append("🔐 Dupla chance: 1X (média)")
-
-        # Dupla Chance - X2
         if wins_away >= 3 and gols_away_fora >= 1.5 and sofre_away_fora < 1.0 and sofre_home_casa >= 1.5:
             alta_conf.append("🔐 Dupla chance: X2 (alta)")
         elif wins_away >= 2 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
@@ -141,13 +134,19 @@ def gerar_sugestao(stats_home, stats_away):
         # Over 1.5
         soma_gols = gm_home + gm_away
         soma_sofridos = gs_home + gs_away
-        clean_total = clean_home + clean_away
-        if soma_gols >= 2.5 and soma_sofridos >= 2.0 and clean_total <= 5:
+        total_clean = clean_home + clean_away
+        if soma_gols >= 2.5 and soma_sofridos >= 2.0 and total_clean <= 5:
             alta_conf.append("⚽ Over 1.5 gols (alta)")
-        elif soma_gols >= 2.0 and soma_sofridos >= 2.0 and clean_total <= 6:
+        elif soma_gols >= 2.0 and soma_sofridos >= 2.0 and total_clean <= 6:
             media_conf.append("⚠️ Over 1.5 gols (média)")
 
-        return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
+        debug = (
+            f"(Debug: gm={gm_home+gm_away}, gs={gs_home+gs_away}, "
+            f"clean={clean_home+clean_away}, shots={shots_on_home+shots_on_away})"
+        )
+
+        todas = alta_conf + media_conf
+        return "\n".join(todas + [debug]) if todas else "Sem sugestão clara\n" + debug
     except:
         return "Sem sugestão clara"
 
