@@ -115,6 +115,16 @@ def gerar_sugestao(stats_home, stats_away):
         alta_conf = []
         media_conf = []
 
+        # Debug
+        print("==== DEBUG MÉTRICAS ====")
+        print(f"Gols marcados: home={gm_home}, away={gm_away}")
+        print(f"Gols sofridos: home={gs_home}, away={gs_away}")
+        print(f"First goal: home={fg_home}, away={fg_away}")
+        print(f"Chutes no alvo: home={shots_on_home}, away={shots_on_away}")
+        print(f"Clean sheets: home={clean_home}, away={clean_away}")
+        print(f"BTTS: home={btts_home}, away={btts_away}")
+        print("========================")
+
         # Dupla Chance - 1X
         if gm_home >= 1.3 and gs_away >= 1.3 and fg_home >= 60:
             alta_conf.append("🔐 Dupla chance: 1X (alta)")
@@ -147,7 +157,8 @@ def gerar_sugestao(stats_home, stats_away):
             media_conf.append("🧤 Under 3.5 gols (média)")
 
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
-    except:
+    except Exception as e:
+        print(f"Erro em gerar_sugestao: {e}")
         return "Sem sugestão clara"
 
 def verificar_pre_jogos():
@@ -202,12 +213,10 @@ def verificar_resultados():
 
             if tipo == "alto":
                 alto_total += 1
-                if acertou:
-                    alto_green += 1
+                if acertou: alto_green += 1
             elif tipo == "medio":
                 medio_total += 1
-                if acertou:
-                    medio_green += 1
+                if acertou: medio_green += 1
 
             resultado.append(f"{'✅' if acertou else '❌'} {entrada}")
 
