@@ -59,18 +59,17 @@ def formatar_jogo(jogo):
     data = dt.strftime("%d/%m")
     hora = dt.strftime("%H:%M")
 
-    header = (
+    chaves_home = list(stats_home.keys())
+    chaves_away = list(stats_away.keys())
+
+    msg = (
         f"⚽ *{home['name']} x {away['name']}*\n"
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n"
+        f"📌 Status: {fixture['status']['short']}\n\n"
+        f"📊 *Dados disponíveis do Mandante:* `{chaves_home}`\n"
+        f"📊 *Dados disponíveis do Visitante:* `{chaves_away}`"
     )
-
-    dados_home = json.dumps(stats_home, indent=2, ensure_ascii=False)
-    dados_away = json.dumps(stats_away, indent=2, ensure_ascii=False)
-
-    msg = f"{header}\n\n📊 *Estatísticas do Mandante ({home['name']}):*\n```\n{dados_home}\n```\n"
-    msg += f"\n📊 *Estatísticas do Visitante ({away['name']}):*\n```\n{dados_away}\n```"
 
     return msg
 def verificar_pre_jogos():
@@ -99,7 +98,7 @@ def verificar_pre_jogos():
         bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado hoje nas ligas selecionadas.", parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado! Enviando estatísticas brutas dos jogos do dia...")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado! Listando chaves de estatísticas da API para os jogos do dia...")
     while True:
         verificar_pre_jogos()
         time.sleep(14400)
