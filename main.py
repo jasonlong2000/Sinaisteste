@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Bot
 import pytz
 import time
@@ -36,9 +36,14 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
-    hoje_br = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
+    agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+    inicio_utc = agora_utc.replace(hour=6)
+    fim_utc = inicio_utc + timedelta(days=1, hours=-3)  # até 03:00 UTC do dia seguinte
+
+    inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
+
+    url = f"https://v3.football.api-sports.io/fixtures?from={inicio_str}&to={fim_str}"
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", [])
 
