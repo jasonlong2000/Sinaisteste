@@ -36,19 +36,20 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-    inicio_utc = agora_utc.replace(hour=6)
-    if agora_utc.hour < 6:
-        inicio_utc -= timedelta(days=1)
-
-    fim_utc = inicio_utc + timedelta(hours=21)
-
-    inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
-    fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
-
-    url = f"https://v3.football.api-sports.io/fixtures?from={inicio_str}&to={fim_str}"
+    fuso_br = pytz.timezone("America/Sao_Paulo")
+    hoje_br = datetime.now(fuso_br).strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
     res = requests.get(url, headers=HEADERS)
-    return res.json().get("response", [])
+    todos = res.json().get("response", [])
+
+    # filtrar apenas entre 06:00 e 03:00 BR
+    jogos_validos = []
+    for jogo in todos:
+        timestamp = jogo["fixture"]["timestamp"]
+        hora_br = datetime.utcfromtimestamp(timestamp).astimezone(fuso_br).hour
+        if hora_br >= 6 or hora_br <= 3:
+            jogos_validos.append(jogo)
+    return jogos_validos
 
 def buscar_estatisticas(league_id, season, team_id):
     url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
