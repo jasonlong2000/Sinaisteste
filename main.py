@@ -103,71 +103,52 @@ def gerar_sugestao(stats_home, stats_away):
         gm_away = float(stats_away["goals"]["for"]["average"]["total"])
         gs_home = float(stats_home["goals"]["against"]["average"]["total"])
         gs_away = float(stats_away["goals"]["against"]["average"]["total"])
-        over25_home = float(stats_home["goals"]["average"]["over_25"])
-        over25_away = float(stats_away["goals"]["average"]["over_25"])
-        btts_home = float(stats_home["both_teams_to_score"]["percentage"].strip('%'))
-        btts_away = float(stats_away["both_teams_to_score"]["percentage"].strip('%'))
-        clean_home = int(stats_home["clean_sheet"]["total"])
-        clean_away = int(stats_away["clean_sheet"]["total"])
-        fg_home = float(stats_home["first_goal"]["for"]["percentage"].strip('%'))
-        fg_away = float(stats_away["first_goal"]["for"]["percentage"].strip('%'))
         shots_on_home = float(stats_home["shots"]["on"]["average"]["total"])
         shots_on_away = float(stats_away["shots"]["on"]["average"]["total"])
         goals_home_home = float(stats_home["goals"]["for"]["average"]["home"])
         goals_away_away = float(stats_away["goals"]["for"]["average"]["away"])
         goals_home_against_home = float(stats_home["goals"]["against"]["average"]["home"])
         goals_away_against_away = float(stats_away["goals"]["against"]["average"]["away"])
-        form_home = stats_home.get("form", "")
-        form_away = stats_away.get("form", "")
+        wins_home_home = stats_home["fixtures"]["wins"]["home"]
+        wins_away_away = stats_away["fixtures"]["wins"]["away"]
 
         alta_conf = []
-        media_conf = []
 
-        derrotas_casa = form_home.count("L")
-        derrotas_fora = form_away.count("L")
-
-        if (derrotas_casa <= 1 or derrotas_fora >= 3) and gm_home >= 1.1 and gs_away >= 1.1 and fg_home >= 50:
+        # Dupla Chance 1X
+        if (
+            wins_home_home > 3
+            and goals_home_home > 1.5
+            and goals_home_against_home < 1.0
+            and goals_away_against_away > 1.5
+        ):
             alta_conf.append("🔐 Dupla chance: 1X (alta)")
-        elif derrotas_casa < 2:
-            media_conf.append("🔐 Dupla chance: 1X (média)")
 
-        if (derrotas_fora <= 1 or derrotas_casa >= 3) and gm_away >= 1.1 and gs_home >= 1.1 and fg_away >= 50:
+        # Dupla Chance X2
+        if (
+            wins_away_away > 3
+            and goals_away_away > 1.5
+            and goals_away_against_away < 1.0
+            and goals_home_against_home > 1.5
+        ):
             alta_conf.append("🔐 Dupla chance: X2 (alta)")
-        elif derrotas_fora < 2:
-            media_conf.append("🔐 Dupla chance: X2 (média)")
 
-        faixas = ["0-15", "16-30", "31-45"]
-        gols_ht_home = sum(1 for faixa in faixas if stats_home["goals"]["for"]["minute"].get(faixa, {}).get("total"))
-        gols_ht_away = sum(1 for faixa in faixas if stats_away["goals"]["against"]["minute"].get(faixa, {}).get("total"))
+        # Under 1.5 Mandante
+        if goals_home_home <= 1.0 and goals_away_against_away < 1.0:
+            alta_conf.append("❌ Under 1.5 mandante (alta)")
 
-        if gols_ht_home >= 1 and gols_ht_away >= 1 and fg_home >= 50:
-            alta_conf.append("⏱️ Gol no 1º tempo (alta)")
+        # Under 1.5 Visitante
+        if goals_home_against_home < 1.0 and goals_away_away <= 1.0:
+            alta_conf.append("❌ Under 1.5 visitante (alta)")
 
-        if gm_home <= 1.5 and gm_away <= 1.5 and clean_home + clean_away >= 4 and shots_on_home + shots_on_away < 9 and btts_home + btts_away < 140:
-            media_conf.append("🧤 Under 3.5 gols (média)")
+        # Under 3.5 (jogo)
+        if gs_home + gs_away < 2.5 and gm_home + gm_away < 2.0:
+            alta_conf.append("🧤 Under 3.5 gols (alta)")
 
-        if gm_home >= 2.0 and gs_away >= 1.5 and shots_on_home >= 3 and fg_home >= 60:
-            alta_conf.append("⚽ Gol do mandante (alta)")
-        elif gm_home >= 1.5 and gs_away >= 1.0 and shots_on_home >= 3 and fg_home >= 50:
-            media_conf.append("⚠️ Gol do mandante (média)")
-
-        if gm_away >= 2.0 and gs_home >= 1.5 and shots_on_away >= 3 and fg_away >= 60:
-            alta_conf.append("⚽ Gol do visitante (alta)")
-        elif gm_away >= 1.5 and gs_home >= 1.0 and shots_on_away >= 3 and fg_away >= 50:
-            media_conf.append("⚠️ Gol do visitante (média)")
-
-        if goals_away_away < 1.4 and goals_home_against_home < 1.4:
-            media_conf.append("❌ Under 1.5 visitante (média)")
-
-        if goals_home_home < 1.4 and goals_away_against_away < 1.4:
-            media_conf.append("❌ Under 1.5 mandante (média)")
-
-        if shots_on_home + shots_on_away >= 9 and gm_home + gm_away >= 2.0:
+        # Over 7.5 chutes no alvo
+        if shots_on_home + shots_on_away > 10 and gm_home + gm_away > 2.0:
             alta_conf.append("🎯 Over 7.5 chutes no alvo (alta)")
-        elif shots_on_home + shots_on_away >= 7 and gm_home + gm_away >= 1.5:
-            media_conf.append("🎯 Over 7.5 chutes no alvo (média)")
 
-        return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
+        return "\n".join(alta_conf) if alta_conf else "Sem sugestão clara"
     except:
         return "Sem sugestão clara"
 
@@ -191,8 +172,7 @@ def verificar_resultados():
     with open(ARQUIVO_RESULTADOS, "r") as f:
         linhas = f.readlines()
 
-    alto_total = alto_green = 0
-    medio_total = medio_green = 0
+    total = green = 0
 
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
@@ -210,33 +190,23 @@ def verificar_resultados():
         resultado = []
 
         for entrada in entradas:
-            tipo = "alto" if "(alta" in entrada else "medio"
             acertou = False
-            if "Gol no 1º tempo" in entrada and (gols_home + gols_away) > 0:
-                acertou = True
             if "Dupla chance: 1X" in entrada and gols_home >= gols_away:
                 acertou = True
             if "Dupla chance: X2" in entrada and gols_away >= gols_home:
                 acertou = True
-            if "Under 3.5" in entrada and (gols_home + gols_away) <= 3:
-                acertou = True
-            if "Gol do mandante" in entrada and gols_home > 0:
-                acertou = True
-            if "Gol do visitante" in entrada and gols_away > 0:
+            if "Under 1.5 mandante" in entrada and gols_home <= 1:
                 acertou = True
             if "Under 1.5 visitante" in entrada and gols_away <= 1:
                 acertou = True
-            if "Under 1.5 mandante" in entrada and gols_home <= 1:
+            if "Under 3.5" in entrada and (gols_home + gols_away) <= 3:
                 acertou = True
             if "chutes no alvo" in entrada and (gols_home + gols_away) > 2:
                 acertou = True
 
-            if tipo == "alto":
-                alto_total += 1
-                if acertou: alto_green += 1
-            elif tipo == "medio":
-                medio_total += 1
-                if acertou: medio_green += 1
+            total += 1
+            if acertou:
+                green += 1
 
             resultado.append(f"{'✅' if acertou else '❌'} {entrada}")
 
@@ -246,9 +216,7 @@ def verificar_resultados():
         )
         bot.send_message(chat_id=CHAT_ID, text=resumo, parse_mode="Markdown")
 
-    final = f"📈 *Resumo final:*\n"
-    final += f"⭐ Risco alto: {alto_green}/{alto_total} green\n" if alto_total else ""
-    final += f"⚠️ Risco médio: {medio_green}/{medio_total} green" if medio_total else ""
+    final = f"📈 *Resumo final:*\n{green}/{total} green"
     bot.send_message(chat_id=CHAT_ID, text=final, parse_mode="Markdown")
 
 if __name__ == "__main__":
