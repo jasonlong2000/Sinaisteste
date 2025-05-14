@@ -124,6 +124,7 @@ def gerar_sugestao(stats_home, stats_away):
         gs_away = float(stats_away["goals"]["against"]["average"]["total"])
         shots_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
         shots_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+
         form_home = stats_home.get("form", "")
         form_away = stats_away.get("form", "")
 
@@ -141,7 +142,7 @@ def gerar_sugestao(stats_home, stats_away):
         elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_home + shots_away) < 8:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
-        # Dupla Chance com form (menos de 3 ou 4 derrotas)
+        # Dupla Chance
         L_home = form_home.count("L")
         L_away = form_away.count("L")
 
@@ -155,7 +156,7 @@ def gerar_sugestao(stats_home, stats_away):
         elif L_away < 4 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.4 and sofre_home_casa >= 1.2:
             media_conf.append("🔐 Dupla chance: X2 (média)")
 
-        # Over 1.5 com form
+        # Over 1.5
         marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
         marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
 
@@ -199,7 +200,6 @@ def verificar_resultados():
 
     alto_total = alto_green = 0
     medio_total = medio_green = 0
-    resultados_encontrados = 0
 
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
