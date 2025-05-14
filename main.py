@@ -96,6 +96,7 @@ def formatar_jogo(jogo):
     )
 def gerar_sugestao(stats_home, stats_away):
     try:
+        # Dados gerais
         gm_home = float(stats_home["goals"]["for"]["average"]["total"])
         gm_away = float(stats_away["goals"]["for"]["average"]["total"])
         gs_home = float(stats_home["goals"]["against"]["average"]["total"])
@@ -104,7 +105,10 @@ def gerar_sugestao(stats_home, stats_away):
         clean_away = int(stats_away["clean_sheet"]["total"])
         shots_on_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
         shots_on_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+        form_home = stats_home.get("form", "")
+        form_away = stats_away.get("form", "")
 
+        # Dados por local
         wins_home = stats_home.get("fixtures", {}).get("wins", {}).get("home", 0)
         wins_away = stats_away.get("fixtures", {}).get("wins", {}).get("away", 0)
         gols_home_casa = float(stats_home["goals"]["for"]["average"].get("home", 0))
@@ -131,13 +135,16 @@ def gerar_sugestao(stats_home, stats_away):
         elif wins_away >= 2 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
             media_conf.append("🔐 Dupla chance: X2 (média)")
 
-        # Over 1.5
+        # Over 1.5 com base em form
         soma_gols = gm_home + gm_away
         soma_sofridos = gs_home + gs_away
-        total_clean = clean_home + clean_away
-        if soma_gols >= 2.5 and soma_sofridos >= 2.0 and total_clean <= 5:
+
+        form_marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
+        form_marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
+
+        if soma_gols >= 2.5 and soma_sofridos >= 2.0 and form_marcou_home and form_marcou_away:
             alta_conf.append("⚽ Over 1.5 gols (alta)")
-        elif soma_gols >= 2.0 and soma_sofridos >= 2.0 and total_clean <= 6:
+        elif soma_gols >= 2.0 and soma_sofridos >= 2.0 and (form_marcou_home or form_marcou_away):
             media_conf.append("⚠️ Over 1.5 gols (média)")
 
         debug = (
@@ -231,7 +238,7 @@ def verificar_resultados():
     bot.send_message(chat_id=CHAT_ID, text=final.strip(), parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com Under 3.5, Dupla Chance e Over 1.5!")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com Over 1.5, Under 3.5 e Dupla Chance!")
     while True:
         verificar_pre_jogos()
         verificar_resultados()
