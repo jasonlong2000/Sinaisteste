@@ -42,23 +42,17 @@ def buscar_estatisticas(league_id, season, team_id):
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", {})
 
-def formatar_resumo_estatisticas(stats):
-    gols_marcados = stats.get("goals", {}).get("for", {}).get("average", {}).get("total", "0")
-    gols_sofridos = stats.get("goals", {}).get("against", {}).get("average", {}).get("total", "0")
-    clean = stats.get("clean_sheet", {}).get("total", "0")
-    btts = stats.get("both_teams_to_score", {}).get("percentage", "0")
-    form = stats.get("form", "-")
-    shots_on = stats.get("shots", {}).get("on", {}).get("average", {}).get("total", "0")
-    cards = stats.get("cards", {}).get("yellow", {}).get("76-90", {}).get("total", "0")
+def formatar_fixtures(fixtures):
+    played = fixtures.get("played", {})
+    wins = fixtures.get("wins", {})
+    loses = fixtures.get("loses", {})
+    draws = fixtures.get("draws", {})
 
     return (
-        f"- Gols marcados: {gols_marcados}\n"
-        f"- Gols sofridos: {gols_sofridos}\n"
-        f"- Clean sheets: {clean}\n"
-        f"- BTTS: {btts}\n"
-        f"- Chutes no alvo: {shots_on}\n"
-        f"- Cartões (76-90min): {cards}\n"
-        f"- Form: {form}"
+        f"- Jogos: casa={played.get('home', 0)}, fora={played.get('away', 0)}, total={played.get('total', 0)}\n"
+        f"- Vitórias: casa={wins.get('home', 0)}, fora={wins.get('away', 0)}, total={wins.get('total', 0)}\n"
+        f"- Empates: casa={draws.get('home', 0)}, fora={draws.get('away', 0)}, total={draws.get('total', 0)}\n"
+        f"- Derrotas: casa={loses.get('home', 0)}, fora={loses.get('away', 0)}, total={loses.get('total', 0)}"
     )
 
 def formatar_jogo(jogo):
@@ -78,16 +72,16 @@ def formatar_jogo(jogo):
     data = dt.strftime("%d/%m")
     hora = dt.strftime("%H:%M")
 
-    resumo_home = formatar_resumo_estatisticas(stats_home)
-    resumo_away = formatar_resumo_estatisticas(stats_away)
+    fixtures_home = formatar_fixtures(stats_home.get("fixtures", {}))
+    fixtures_away = formatar_fixtures(stats_away.get("fixtures", {}))
 
     msg = (
         f"⚽ *{home['name']} x {away['name']}*\n"
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
-        f"📊 *Resumo Estatístico - Mandante:*\n{resumo_home}\n\n"
-        f"📊 *Resumo Estatístico - Visitante:*\n{resumo_away}"
+        f"📊 *Mandante - Resumo Fixtures:*\n{fixtures_home}\n\n"
+        f"📊 *Visitante - Resumo Fixtures:*\n{fixtures_away}"
     )
 
     return msg
@@ -117,7 +111,7 @@ def verificar_pre_jogos():
         bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado hoje nas ligas selecionadas.", parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado! Enviando resumo estatístico de cada time para análise...")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado! Enviando fixtures (vitórias/empates/derrotas) de cada time para análise...")
     while True:
         verificar_pre_jogos()
         time.sleep(14400)
