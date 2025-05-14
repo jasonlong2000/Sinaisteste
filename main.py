@@ -1,102 +1,3 @@
-import requests
-from datetime import datetime
-from telegram import Bot
-import pytz
-import time
-import os
-
-API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
-BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
-CHAT_ID = "-1002675165012"
-
-ARQUIVO_ENVIADOS = "pre_jogos_footballapi.txt"
-ARQUIVO_RESULTADOS = "resultados_pendentes.txt"
-
-bot = Bot(token=BOT_TOKEN)
-
-LIGAS_PERMITIDAS = {
-    2, 3, 4, 5, 9, 11, 13, 15, 32, 39, 40, 41, 48, 61, 62,
-    66, 71, 72, 73, 75, 78, 79, 135, 140, 143, 145, 477, 484, 541, 556, 742, 866
-}
-
-HEADERS = {"x-apisports-key": API_KEY}
-
-def carregar_enviados():
-    if os.path.exists(ARQUIVO_ENVIADOS):
-        with open(ARQUIVO_ENVIADOS, "r") as f:
-            return set(line.strip() for line in f)
-    return set()
-
-def salvar_enviado(jogo_id):
-    with open(ARQUIVO_ENVIADOS, "a") as f:
-        f.write(f"{jogo_id}\n")
-
-def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
-    with open(ARQUIVO_RESULTADOS, "a") as f:
-        f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
-
-def buscar_jogos_do_dia():
-    hoje = datetime.now().strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
-    res = requests.get(url, headers=HEADERS)
-    return res.json().get("response", [])
-
-def buscar_estatisticas(league_id, season, team_id):
-    url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
-    res = requests.get(url, headers=HEADERS)
-    return res.json().get("response", {})
-
-def formatar_valor(v):
-    return str(v) if v not in [None, "-", ""] else "0"
-
-def sugestao_de_placar(gm1, gm2, gs1, gs2):
-    try:
-        g1 = round((float(gm1) + float(gs2)) / 2)
-        g2 = round((float(gm2) + float(gs1)) / 2)
-        alternativa = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
-        return f"{g1} x {g2} ou {alternativa}"
-    except:
-        return "Indefinido"
-
-def formatar_jogo(jogo):
-    fixture = jogo["fixture"]
-    teams = jogo["teams"]
-    league = jogo["league"]
-    home = teams["home"]
-    away = teams["away"]
-
-    if league["id"] not in LIGAS_PERMITIDAS:
-        return None
-
-    stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
-    stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
-
-    placar = sugestao_de_placar(
-        stats_home["goals"]["for"]["average"]["total"],
-        stats_away["goals"]["for"]["average"]["total"],
-        stats_home["goals"]["against"]["average"]["total"],
-        stats_away["goals"]["against"]["average"]["total"]
-    )
-
-    sugestoes = gerar_sugestao(stats_home, stats_away)
-
-    salvar_resultado_previsto(
-        fixture["id"], home["name"], away["name"],
-        sugestoes.replace("\n", " | ") if sugestoes else "Sem sugestão clara"
-    )
-
-    dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
-    data = dt.strftime("%d/%m")
-    hora = dt.strftime("%H:%M")
-
-    return (
-        f"⚽ *{home['name']} x {away['name']}*\n"
-        f"🌍 {league['name']}\n"
-        f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n\n"
-        f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Sugestões:*\n{sugestoes if sugestoes else 'Sem sugestão clara'}"
-    )
 def gerar_sugestao(stats_home, stats_away):
     try:
         gm_home = float(stats_home["goals"]["for"]["average"]["total"])
@@ -114,16 +15,6 @@ def gerar_sugestao(stats_home, stats_away):
 
         alta_conf = []
         media_conf = []
-
-        # Debug
-        print("==== DEBUG MÉTRICAS ====")
-        print(f"Gols marcados: home={gm_home}, away={gm_away}")
-        print(f"Gols sofridos: home={gs_home}, away={gs_away}")
-        print(f"First goal: home={fg_home}, away={fg_away}")
-        print(f"Chutes no alvo: home={shots_on_home}, away={shots_on_away}")
-        print(f"Clean sheets: home={clean_home}, away={clean_away}")
-        print(f"BTTS: home={btts_home}, away={btts_away}")
-        print("========================")
 
         # Dupla Chance - 1X
         if gm_home >= 1.3 and gs_away >= 1.3 and fg_home >= 60:
@@ -157,8 +48,7 @@ def gerar_sugestao(stats_home, stats_away):
             media_conf.append("🧤 Under 3.5 gols (média)")
 
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
-    except Exception as e:
-        print(f"Erro em gerar_sugestao: {e}")
+    except:
         return "Sem sugestão clara"
 
 def verificar_pre_jogos():
