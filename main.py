@@ -38,7 +38,10 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
 def buscar_jogos_do_dia():
     agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
     inicio_utc = agora_utc.replace(hour=6)
-    fim_utc = inicio_utc + timedelta(days=1, hours=-3)  # até 03:00 UTC do dia seguinte
+    if agora_utc.hour < 6:
+        inicio_utc -= timedelta(days=1)
+
+    fim_utc = inicio_utc + timedelta(hours=21)
 
     inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
     fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
