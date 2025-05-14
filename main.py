@@ -64,7 +64,9 @@ def gerar_debug_metrica(stats_home, stats_away):
     gs_home = float(stats_home["goals"]["against"]["average"]["total"])
     gs_away = float(stats_away["goals"]["against"]["average"]["total"])
     clean = int(stats_home["clean_sheet"]["total"]) + int(stats_away["clean_sheet"]["total"])
-    shots = float(stats_home["shots"]["on"]["average"]["total"]) + float(stats_away["shots"]["on"]["average"]["total"])
+    shots_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+    shots_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+    shots = shots_home + shots_away
     btts = float(stats_home["both_teams_to_score"]["percentage"].strip('%')) + float(stats_away["both_teams_to_score"]["percentage"].strip('%'))
 
     return f"(Métricas: gm_home={gm_home}, gm_away={gm_away}, gs_home={gs_home}, gs_away={gs_away}, clean={clean}, shots={shots}, BTTS={btts})"
@@ -119,8 +121,8 @@ def gerar_sugestao(stats_home, stats_away):
         btts_away = float(stats_away["both_teams_to_score"]["percentage"].strip('%'))
         clean_home = int(stats_home["clean_sheet"]["total"])
         clean_away = int(stats_away["clean_sheet"]["total"])
-        shots_on_home = float(stats_home["shots"]["on"]["average"]["total"])
-        shots_on_away = float(stats_away["shots"]["on"]["average"]["total"])
+        shots_on_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+        shots_on_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
 
         alta_conf = []
         media_conf = []
