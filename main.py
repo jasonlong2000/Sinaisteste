@@ -36,16 +36,14 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    fuso_br = pytz.timezone("America/Sao_Paulo")
-    agora_br = datetime.now(fuso_br)
+    agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+    inicio_utc = agora_utc.replace(hour=6)
+    fim_utc = inicio_utc + timedelta(days=1)
 
-    inicio_br = agora_br.replace(hour=0, minute=0, second=0, microsecond=0)
-    fim_br = inicio_br + timedelta(days=1)
+    inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
 
-    inicio_utc = inicio_br.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%S")
-    fim_utc = fim_br.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%S")
-
-    url = f"https://v3.football.api-sports.io/fixtures?from={inicio_utc}&to={fim_utc}"
+    url = f"https://v3.football.api-sports.io/fixtures?from={inicio_str}&to={fim_str}"
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", [])
 
@@ -149,7 +147,7 @@ def gerar_sugestao(stats_home, stats_away):
         elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_home + shots_away) < 8:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
-        # Dupla Chance com form
+        # Dupla Chance
         L_home = form_home.count("L")
         L_away = form_away.count("L")
 
