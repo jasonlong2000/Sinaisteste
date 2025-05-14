@@ -36,11 +36,10 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-    inicio_utc = agora_utc.replace(hour=6)
-    fim_utc = inicio_utc + timedelta(days=1)
+    agora_utc = datetime.utcnow().replace(second=0, microsecond=0)
+    fim_utc = agora_utc + timedelta(hours=12)
 
-    inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    inicio_str = agora_utc.strftime("%Y-%m-%dT%H:%M:%S")
     fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
 
     url = f"https://v3.football.api-sports.io/fixtures?from={inicio_str}&to={fim_str}"
@@ -136,7 +135,7 @@ def gerar_sugestao(stats_home, stats_away):
         gols_home_casa = float(stats_home["goals"]["for"]["average"].get("home", 0))
         gols_away_fora = float(stats_away["goals"]["for"]["average"].get("away", 0))
         sofre_home_casa = float(stats_home["goals"]["against"]["average"].get("home", 0))
-        sofre_away_fora = float(stats_away["goals"]["against"]["average"].get("away", 0))
+        sofre_away_fora = float(stats_away["goals"]["against"].get("away", 0))
 
         alta_conf = []
         media_conf = []
@@ -147,7 +146,7 @@ def gerar_sugestao(stats_home, stats_away):
         elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_home + shots_away) < 8:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
-        # Dupla Chance
+        # Dupla Chance com form
         L_home = form_home.count("L")
         L_away = form_away.count("L")
 
