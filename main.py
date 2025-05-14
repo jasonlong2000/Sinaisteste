@@ -1,4 +1,4 @@
-import request
+import requests
 import json
 from datetime import datetime
 from telegram import Bot
@@ -42,6 +42,25 @@ def buscar_estatisticas(league_id, season, team_id):
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", {})
 
+def formatar_resumo_estatisticas(stats):
+    gols_marcados = stats.get("goals", {}).get("for", {}).get("average", {}).get("total", "0")
+    gols_sofridos = stats.get("goals", {}).get("against", {}).get("average", {}).get("total", "0")
+    clean = stats.get("clean_sheet", {}).get("total", "0")
+    btts = stats.get("both_teams_to_score", {}).get("percentage", "0")
+    form = stats.get("form", "-")
+    shots_on = stats.get("shots", {}).get("on", {}).get("average", {}).get("total", "0")
+    cards = stats.get("cards", {}).get("yellow", {}).get("76-90", {}).get("total", "0")
+
+    return (
+        f"- Gols marcados: {gols_marcados}\n"
+        f"- Gols sofridos: {gols_sofridos}\n"
+        f"- Clean sheets: {clean}\n"
+        f"- BTTS: {btts}\n"
+        f"- Chutes no alvo: {shots_on}\n"
+        f"- Cartões (76-90min): {cards}\n"
+        f"- Form: {form}"
+    )
+
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     league = jogo["league"]
@@ -59,16 +78,16 @@ def formatar_jogo(jogo):
     data = dt.strftime("%d/%m")
     hora = dt.strftime("%H:%M")
 
-    chaves_home = list(stats_home.keys())
-    chaves_away = list(stats_away.keys())
+    resumo_home = formatar_resumo_estatisticas(stats_home)
+    resumo_away = formatar_resumo_estatisticas(stats_away)
 
     msg = (
         f"⚽ *{home['name']} x {away['name']}*\n"
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
-        f"📊 *Dados disponíveis do Mandante:* `{chaves_home}`\n"
-        f"📊 *Dados disponíveis do Visitante:* `{chaves_away}`"
+        f"📊 *Resumo Estatístico - Mandante:*\n{resumo_home}\n\n"
+        f"📊 *Resumo Estatístico - Visitante:*\n{resumo_away}"
     )
 
     return msg
@@ -98,7 +117,7 @@ def verificar_pre_jogos():
         bot.send_message(chat_id=CHAT_ID, text="⚠️ Nenhum jogo novo encontrado hoje nas ligas selecionadas.", parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado! Listando chaves de estatísticas da API para os jogos do dia...")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado! Enviando resumo estatístico de cada time para análise...")
     while True:
         verificar_pre_jogos()
         time.sleep(14400)
