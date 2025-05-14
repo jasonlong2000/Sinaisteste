@@ -63,8 +63,8 @@ def gerar_debug_metrica(stats_home, stats_away):
     gm_away = float(stats_away["goals"]["for"]["average"]["total"])
     gs_home = float(stats_home["goals"]["against"]["average"]["total"])
     gs_away = float(stats_away["goals"]["against"]["average"]["total"])
-    fg_home = float(stats_home["first_goal"]["for"]["percentage"].strip('%'))
-    fg_away = float(stats_away["first_goal"]["for"]["percentage"].strip('%'))
+    fg_home = float(stats_home.get("first_goal", {}).get("for", {}).get("percentage", "0").strip('%'))
+    fg_away = float(stats_away.get("first_goal", {}).get("for", {}).get("percentage", "0").strip('%'))
     clean = int(stats_home["clean_sheet"]["total"]) + int(stats_away["clean_sheet"]["total"])
     shots = float(stats_home["shots"]["on"]["average"]["total"]) + float(stats_away["shots"]["on"]["average"]["total"])
     btts = float(stats_home["both_teams_to_score"]["percentage"].strip('%')) + float(stats_away["both_teams_to_score"]["percentage"].strip('%'))
@@ -121,8 +121,8 @@ def gerar_sugestao(stats_home, stats_away):
         btts_away = float(stats_away["both_teams_to_score"]["percentage"].strip('%'))
         clean_home = int(stats_home["clean_sheet"]["total"])
         clean_away = int(stats_away["clean_sheet"]["total"])
-        fg_home = float(stats_home["first_goal"]["for"]["percentage"].strip('%'))
-        fg_away = float(stats_away["first_goal"]["for"]["percentage"].strip('%'))
+        fg_home = float(stats_home.get("first_goal", {}).get("for", {}).get("percentage", "0").strip('%'))
+        fg_away = float(stats_away.get("first_goal", {}).get("for", {}).get("percentage", "0").strip('%'))
         shots_on_home = float(stats_home["shots"]["on"]["average"]["total"])
         shots_on_away = float(stats_away["shots"]["on"]["average"]["total"])
 
@@ -216,10 +216,12 @@ def verificar_resultados():
 
             if tipo == "alto":
                 alto_total += 1
-                if acertou: alto_green += 1
+                if acertou:
+                    alto_green += 1
             elif tipo == "medio":
                 medio_total += 1
-                if acertou: medio_green += 1
+                if acertou:
+                    medio_green += 1
 
             resultado.append(f"{'✅' if acertou else '❌'} {entrada}")
 
