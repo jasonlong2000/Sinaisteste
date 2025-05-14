@@ -121,32 +121,25 @@ def gerar_sugestao(stats_home, stats_away):
         media_conf = []
 
         # Dupla Chance 1X
-        if wins_home >= 3 and gols_home_casa >= 1.5 and sofre_home_casa < 1.0 and sofre_away_fora >= 1.5:
-            alta_conf.append("🔐 Dupla chance: 1X (alta)")
-        elif wins_home >= 2 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
+        if wins_home >= 2 and gols_home_casa >= 1.1 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.1:
             media_conf.append("🔐 Dupla chance: 1X (média)")
-
         # Dupla Chance X2
-        if wins_away >= 3 and gols_away_fora >= 1.5 and sofre_away_fora < 1.0 and sofre_home_casa >= 1.5:
-            alta_conf.append("🔐 Dupla chance: X2 (alta)")
-        elif wins_away >= 2 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
+        if wins_away >= 2 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.1:
             media_conf.append("🔐 Dupla chance: X2 (média)")
 
         # Over 1.5
         soma_gols = gm_home + gm_away
         soma_sofridos = gs_home + gs_away
-        if soma_gols >= 2.5 and soma_sofridos >= 1.5 and (clean_home + clean_away) <= 3:
+        if soma_gols >= 2.3 and soma_sofridos >= 1.3:
             alta_conf.append("⚽ Over 1.5 gols (alta)")
-        elif soma_gols >= 2.0 and soma_sofridos >= 1.0 and (clean_home + clean_away) <= 5:
+        elif soma_gols >= 2.0 and soma_sofridos >= 1.0:
             media_conf.append("⚠️ Over 1.5 gols (média)")
 
         # Under 3.5
         clean_total = clean_home + clean_away
         shots_total = shots_on_home + shots_on_away
         btts_total = btts_home + btts_away
-        if clean_total >= 6 and shots_total < 7 and btts_total < 120:
-            alta_conf.append("🧤 Under 3.5 gols (alta)")
-        elif clean_total >= 4 and shots_total < 9 and btts_total < 140:
+        if clean_total >= 5 and shots_total < 8 and btts_total < 130:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
@@ -168,13 +161,17 @@ def verificar_pre_jogos():
             time.sleep(2)
 
 def verificar_resultados():
+    bot.send_message(chat_id=CHAT_ID, text="🔍 Verificando resultados de jogos anteriores...")
     if not os.path.exists(ARQUIVO_RESULTADOS):
+        bot.send_message(chat_id=CHAT_ID, text="📁 Nenhum arquivo de resultados encontrado.")
         return
+
     with open(ARQUIVO_RESULTADOS, "r") as f:
         linhas = f.readlines()
 
     alto_total = alto_green = 0
     medio_total = medio_green = 0
+    resultados_encontrados = 0
 
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
@@ -186,6 +183,7 @@ def verificar_resultados():
         if jogo["fixture"]["status"]["short"] != "FT":
             continue
 
+        resultados_encontrados += 1
         gols_home = jogo["goals"]["home"]
         gols_away = jogo["goals"]["away"]
         entradas = previsao.split(" | ")
@@ -205,12 +203,10 @@ def verificar_resultados():
 
             if tipo == "alto":
                 alto_total += 1
-                if acertou:
-                    alto_green += 1
+                if acertou: alto_green += 1
             elif tipo == "medio":
                 medio_total += 1
-                if acertou:
-                    medio_green += 1
+                if acertou: medio_green += 1
 
             resultado.append(f"{'✅' if acertou else '❌'} {entrada}")
 
@@ -220,10 +216,13 @@ def verificar_resultados():
         )
         bot.send_message(chat_id=CHAT_ID, text=resumo, parse_mode="Markdown")
 
+    if resultados_encontrados == 0:
+        bot.send_message(chat_id=CHAT_ID, text="ℹ️ Nenhum jogo finalizado ainda.")
+
     final = f"📈 *Resumo final:*\n"
     final += f"⭐ Risco alto: {alto_green}/{alto_total} green\n" if alto_total else ""
     final += f"⚠️ Risco médio: {medio_green}/{medio_total} green" if medio_total else ""
-    bot.send_message(chat_id=CHAT_ID, text=final, parse_mode="Markdown")
+    bot.send_message(chat_id=CHAT_ID, text=final.strip(), parse_mode="Markdown")
 
 if __name__ == "__main__":
     bot.send_message(chat_id=CHAT_ID, text="✅ Robô de previsões ativado com sucesso!")
