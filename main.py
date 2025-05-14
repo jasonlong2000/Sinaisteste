@@ -36,8 +36,9 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    hoje = datetime.now().strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
+    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
+    hoje_br = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", [])
 
@@ -46,12 +47,39 @@ def buscar_estatisticas(league_id, season, team_id):
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", {})
 
-def sugestao_de_placar(gm1, gm2, gs1, gs2):
+def sugestao_de_placar(stats_home, stats_away, sugestao_texto=""):
     try:
-        g1 = round((float(gm1) + float(gs2)) / 2)
-        g2 = round((float(gm2) + float(gs1)) / 2)
-        alternativa = f"{g1+1} x {g2}" if g1 <= g2 else f"{g1} x {g2+1}"
-        return f"{g1} x {g2} ou {alternativa}"
+        g_home = (
+            float(stats_home["goals"]["for"]["average"].get("home", 0)) +
+            float(stats_away["goals"]["against"]["average"].get("away", 0))
+        ) / 2
+        g_away = (
+            float(stats_away["goals"]["for"]["average"].get("away", 0)) +
+            float(stats_home["goals"]["against"]["average"].get("home", 0))
+        ) / 2
+
+        form_home = stats_home.get("form", "")
+        form_away = stats_away.get("form", "")
+        if form_home.endswith("WW"): g_home += 1
+        if form_home.endswith("LL"): g_home -= 1
+        if form_away.endswith("WW"): g_away += 1
+        if form_away.endswith("LL"): g_away -= 1
+
+        if "Dupla chance: 1X" in sugestao_texto: g_home += 1
+        if "Dupla chance: X2" in sugestao_texto: g_away += 1
+
+        soma = g_home + g_away
+        if "Over 1.5" in sugestao_texto and soma < 2:
+            g_home += 1
+        if "Under 3.5" in sugestao_texto and soma > 3:
+            excesso = soma - 3
+            g_home -= excesso / 2
+            g_away -= excesso / 2
+
+        g_home = max(0, round(g_home))
+        g_away = max(0, round(g_away))
+        alt = f"{g_home+1} x {g_away}" if g_home <= g_away else f"{g_home} x {g_away+1}"
+        return f"{g_home} x {g_away} ou {alt}"
     except:
         return "Indefinido"
 
@@ -68,14 +96,8 @@ def formatar_jogo(jogo):
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    placar = sugestao_de_placar(
-        stats_home["goals"]["for"]["average"]["total"],
-        stats_away["goals"]["for"]["average"]["total"],
-        stats_home["goals"]["against"]["average"]["total"],
-        stats_away["goals"]["against"]["average"]["total"]
-    )
-
     sugestoes = gerar_sugestao(stats_home, stats_away)
+    placar = sugestao_de_placar(stats_home, stats_away, sugestoes)
 
     salvar_resultado_previsto(
         fixture["id"], home["name"], away["name"],
@@ -102,12 +124,9 @@ def gerar_sugestao(stats_home, stats_away):
         gs_away = float(stats_away["goals"]["against"]["average"]["total"])
         shots_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
         shots_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
-
         form_home = stats_home.get("form", "")
         form_away = stats_away.get("form", "")
 
-        wins_home = stats_home.get("fixtures", {}).get("wins", {}).get("home", 0)
-        wins_away = stats_away.get("fixtures", {}).get("wins", {}).get("away", 0)
         gols_home_casa = float(stats_home["goals"]["for"]["average"].get("home", 0))
         gols_away_fora = float(stats_away["goals"]["for"]["average"].get("away", 0))
         sofre_home_casa = float(stats_home["goals"]["against"]["average"].get("home", 0))
@@ -122,32 +141,32 @@ def gerar_sugestao(stats_home, stats_away):
         elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_home + shots_away) < 8:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
-        # Dupla Chance com form
-        derrotas_home = form_home.count("L")
-        derrotas_away = form_away.count("L")
+        # Dupla Chance com form (menos de 3 ou 4 derrotas)
+        L_home = form_home.count("L")
+        L_away = form_away.count("L")
 
-        if derrotas_home < 3 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
+        if L_home < 3 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
             alta_conf.append("🔐 Dupla chance: 1X (alta)")
-        elif derrotas_home < 4 and gols_home_casa >= 1.1 and sofre_home_casa <= 1.4 and sofre_away_fora >= 1.2:
+        elif L_home < 4 and gols_home_casa >= 1.1 and sofre_home_casa <= 1.4 and sofre_away_fora >= 1.2:
             media_conf.append("🔐 Dupla chance: 1X (média)")
 
-        if derrotas_away < 3 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
+        if L_away < 3 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
             alta_conf.append("🔐 Dupla chance: X2 (alta)")
-        elif derrotas_away < 4 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.4 and sofre_home_casa >= 1.2:
+        elif L_away < 4 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.4 and sofre_home_casa >= 1.2:
             media_conf.append("🔐 Dupla chance: X2 (média)")
 
         # Over 1.5 com form
-        form_marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
-        form_marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
+        marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
+        marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
 
-        if gm_home + gm_away >= 2.5 and gs_home + gs_away >= 2.0 and form_marcou_home and form_marcou_away:
+        if gm_home + gm_away >= 2.5 and gs_home + gs_away >= 2.0 and marcou_home and marcou_away:
             alta_conf.append("⚽ Over 1.5 gols (alta)")
-        elif gm_home + gm_away >= 2.0 and gs_home + gs_away >= 2.0 and (form_marcou_home or form_marcou_away):
+        elif gm_home + gm_away >= 2.0 and gs_home + gs_away >= 2.0 and (marcou_home or marcou_away):
             media_conf.append("⚠️ Over 1.5 gols (média)")
 
         debug = (
             f"(Debug: gm={gm_home+gm_away}, gs={gs_home+gs_away}, "
-            f"shots={shots_home+shots_away}, L_home={derrotas_home}, L_away={derrotas_away})"
+            f"shots={shots_home+shots_away}, L_home={L_home}, L_away={L_away})"
         )
 
         todas = alta_conf + media_conf
@@ -180,6 +199,7 @@ def verificar_resultados():
 
     alto_total = alto_green = 0
     medio_total = medio_green = 0
+    resultados_encontrados = 0
 
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
