@@ -126,12 +126,12 @@ def gerar_sugestao(stats_home, stats_away):
         derrotas_casa = form_home.count("L")
         derrotas_fora = form_away.count("L")
 
-        if (derrotas_casa <= 1 or derrotas_fora >= 3) and gm_home >= 1.3 and gs_away >= 1.3 and fg_home >= 60:
+        if (derrotas_casa <= 1 or derrotas_fora >= 3) and gm_home >= 1.1 and gs_away >= 1.1 and fg_home >= 50:
             alta_conf.append("🔐 Dupla chance: 1X (alta)")
         elif derrotas_casa < 2:
             media_conf.append("🔐 Dupla chance: 1X (média)")
 
-        if (derrotas_fora <= 1 or derrotas_casa >= 3) and gm_away >= 1.3 and gs_home >= 1.3 and fg_away >= 60:
+        if (derrotas_fora <= 1 or derrotas_casa >= 3) and gm_away >= 1.1 and gs_home >= 1.1 and fg_away >= 50:
             alta_conf.append("🔐 Dupla chance: X2 (alta)")
         elif derrotas_fora < 2:
             media_conf.append("🔐 Dupla chance: X2 (média)")
@@ -140,39 +140,31 @@ def gerar_sugestao(stats_home, stats_away):
         gols_ht_home = sum(1 for faixa in faixas if stats_home["goals"]["for"]["minute"].get(faixa, {}).get("total"))
         gols_ht_away = sum(1 for faixa in faixas if stats_away["goals"]["against"]["minute"].get(faixa, {}).get("total"))
 
-        if gols_ht_home >= 2 and gols_ht_away >= 2 and fg_home >= 60:
+        if gols_ht_home >= 1 and gols_ht_away >= 1 and fg_home >= 50:
             alta_conf.append("⏱️ Gol no 1º tempo (alta)")
-        elif gols_ht_home >= 1 and gols_ht_away >= 1 and fg_home >= 50:
-            media_conf.append("⏱️ Gol no 1º tempo (média)")
 
-        if gm_home <= 1.0 and gm_away <= 1.0 and clean_home + clean_away >= 6 and shots_on_home + shots_on_away < 7 and (btts_home + btts_away) < 120:
-            alta_conf.append("🧤 Under 3.5 gols (alta)")
-        elif gm_home <= 1.3 and gm_away <= 1.3 and clean_home + clean_away >= 4 and shots_on_home + shots_on_away < 8 and (btts_home + btts_away) < 130:
+        if gm_home <= 1.5 and gm_away <= 1.5 and clean_home + clean_away >= 4 and shots_on_home + shots_on_away < 9 and btts_home + btts_away < 140:
             media_conf.append("🧤 Under 3.5 gols (média)")
 
-        if gm_home >= 2.0 and gs_away >= 1.5 and shots_on_home > 4 and fg_home >= 60:
+        if gm_home >= 2.0 and gs_away >= 1.5 and shots_on_home >= 3 and fg_home >= 60:
             alta_conf.append("⚽ Gol do mandante (alta)")
-        elif gm_home >= 1.5 and gs_away >= 1.0 and shots_on_home > 4 and fg_home >= 60:
+        elif gm_home >= 1.5 and gs_away >= 1.0 and shots_on_home >= 3 and fg_home >= 50:
             media_conf.append("⚠️ Gol do mandante (média)")
 
-        if gm_away >= 2.0 and gs_home >= 1.5 and shots_on_away > 4 and fg_away >= 60:
+        if gm_away >= 2.0 and gs_home >= 1.5 and shots_on_away >= 3 and fg_away >= 60:
             alta_conf.append("⚽ Gol do visitante (alta)")
-        elif gm_away >= 1.5 and gs_home >= 1.0 and shots_on_away > 4 and fg_away >= 60:
+        elif gm_away >= 1.5 and gs_home >= 1.0 and shots_on_away >= 3 and fg_away >= 50:
             media_conf.append("⚠️ Gol do visitante (média)")
 
-        if goals_away_away < 1.0 and goals_home_against_home < 1.0:
-            alta_conf.append("❌ Under 1.5 visitante (alta)")
-        elif goals_away_away <= 1.2 and goals_home_against_home <= 1.2:
+        if goals_away_away < 1.4 and goals_home_against_home < 1.4:
             media_conf.append("❌ Under 1.5 visitante (média)")
 
-        if goals_home_home < 1.0 and goals_away_against_away < 1.0:
-            alta_conf.append("❌ Under 1.5 mandante (alta)")
-        elif goals_home_home <= 1.2 and goals_away_against_away <= 1.2:
+        if goals_home_home < 1.4 and goals_away_against_away < 1.4:
             media_conf.append("❌ Under 1.5 mandante (média)")
 
-        if shots_on_home + shots_on_away >= 10 and gm_home + gm_away >= 2.5:
+        if shots_on_home + shots_on_away >= 9 and gm_home + gm_away >= 2.0:
             alta_conf.append("🎯 Over 7.5 chutes no alvo (alta)")
-        elif shots_on_home + shots_on_away >= 8 and gm_home + gm_away >= 2.0:
+        elif shots_on_home + shots_on_away >= 7 and gm_home + gm_away >= 1.5:
             media_conf.append("🎯 Over 7.5 chutes no alvo (média)")
 
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
@@ -259,7 +251,6 @@ def verificar_resultados():
     final += f"⚠️ Risco médio: {medio_green}/{medio_total} green" if medio_total else ""
     bot.send_message(chat_id=CHAT_ID, text=final, parse_mode="Markdown")
 
-# Aviso de inicialização + execução contínua
 if __name__ == "__main__":
     bot.send_message(chat_id=CHAT_ID, text="✅ Robô de previsões ativado com sucesso!")
     while True:
