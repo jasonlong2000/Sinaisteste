@@ -36,20 +36,18 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    fuso_br = pytz.timezone("America/Sao_Paulo")
-    hoje_br = datetime.now(fuso_br).strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
-    res = requests.get(url, headers=HEADERS)
-    todos = res.json().get("response", [])
+    agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+    inicio_utc = agora_utc.replace(hour=6)
+    if agora_utc.hour < 6:
+        inicio_utc -= timedelta(days=1)
+    fim_utc = inicio_utc + timedelta(hours=21)
 
-    # filtrar apenas entre 06:00 e 03:00 BR
-    jogos_validos = []
-    for jogo in todos:
-        timestamp = jogo["fixture"]["timestamp"]
-        hora_br = datetime.utcfromtimestamp(timestamp).astimezone(fuso_br).hour
-        if hora_br >= 6 or hora_br <= 3:
-            jogos_validos.append(jogo)
-    return jogos_validos
+    inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
+    fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
+
+    url = f"https://v3.football.api-sports.io/fixtures?from={inicio_str}&to={fim_str}"
+    res = requests.get(url, headers=HEADERS)
+    return res.json().get("response", [])
 
 def buscar_estatisticas(league_id, season, team_id):
     url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
@@ -171,16 +169,11 @@ def gerar_sugestao(stats_home, stats_away):
 
         if gm_home + gm_away >= 2.5 and gs_home + gs_away >= 2.0 and marcou_home and marcou_away:
             alta_conf.append("⚽ Over 1.5 gols (alta)")
-        elif gm_home + gm_away >= 2.0 and gs_home + gs_away >= 2.0 and (marcou_home or marcou_away):
+        elif gm_home + gm_away >= 2.2 and gs_home + gs_away >= 2.0 and (marcou_home or marcou_away):
             media_conf.append("⚠️ Over 1.5 gols (média)")
 
-        debug = (
-            f"(Debug: gm={gm_home+gm_away}, gs={gs_home+gs_away}, "
-            f"shots={shots_home+shots_away}, L_home={L_home}, L_away={L_away})"
-        )
-
         todas = alta_conf + media_conf
-        return "\n".join(todas + [debug]) if todas else "Sem sugestão clara\n" + debug
+        return "\n".join(todas) if todas else "Sem sugestão clara"
     except:
         return "Sem sugestão clara"
 
@@ -201,7 +194,6 @@ def verificar_pre_jogos():
 def verificar_resultados():
     bot.send_message(chat_id=CHAT_ID, text="🔍 Verificando resultados de jogos anteriores...")
     if not os.path.exists(ARQUIVO_RESULTADOS):
-        bot.send_message(chat_id=CHAT_ID, text="📁 Nenhum arquivo de resultados encontrado.")
         return
 
     with open(ARQUIVO_RESULTADOS, "r") as f:
@@ -212,6 +204,9 @@ def verificar_resultados():
 
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
+        if "Sem sugestão clara" in previsao:
+            continue  # ignora jogos sem sugestões reais
+
         url = f"https://v3.football.api-sports.io/fixtures?id={jogo_id}"
         res = requests.get(url, headers=HEADERS).json()
         if not res["response"]:
@@ -228,6 +223,7 @@ def verificar_resultados():
         for entrada in entradas:
             tipo = "alto" if "(alta" in entrada else "medio"
             acertou = False
+
             if "Over 1.5" in entrada and (gols_home + gols_away) >= 2:
                 acertou = True
             if "Under 3.5" in entrada and (gols_home + gols_away) <= 3:
