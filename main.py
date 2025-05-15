@@ -47,6 +47,94 @@ def buscar_estatisticas(league_id, season, team_id):
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", {})
 
+def gerar_sugestao(stats_home, stats_away):
+    try:
+        gm_home = float(stats_home["goals"]["for"]["average"]["total"])
+        gm_away = float(stats_away["goals"]["for"]["average"]["total"])
+        gs_home = float(stats_home["goals"]["against"]["average"]["total"])
+        gs_away = float(stats_away["goals"]["against"]["average"]["total"])
+        shots_home = float(stats_home.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+        shots_away = float(stats_away.get("shots", {}).get("on", {}).get("average", {}).get("total", 0))
+        clean_home = int(stats_home.get("clean_sheet", {}).get("total", 0))
+        clean_away = int(stats_away.get("clean_sheet", {}).get("total", 0))
+
+        form_home = stats_home.get("form", "")
+        form_away = stats_away.get("form", "")
+
+        gols_home_casa = float(stats_home["goals"]["for"]["average"].get("home", 0))
+        gols_away_fora = float(stats_away["goals"]["for"]["average"].get("away", 0))
+        sofre_home_casa = float(stats_home["goals"]["against"]["average"].get("home", 0))
+        sofre_away_fora = float(stats_away["goals"]["against"]["average"].get("away", 0))
+
+        alta_conf = []
+        media_conf = []
+
+        # Under 3.5
+        if gm_home + gm_away <= 2.4 and gs_home + gs_away <= 2.0 and (shots_home + shots_away) < 6:
+            alta_conf.append("🧤 Under 3.5 gols (alta)")
+        elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_home + shots_away) < 8:
+            media_conf.append("🧤 Under 3.5 gols (média)")
+
+        # Dupla Chance
+        L_home = form_home.count("L")
+        L_away = form_away.count("L")
+
+        if L_home < 3 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
+            alta_conf.append("🔐 Dupla chance: 1X (alta)")
+        elif L_home < 4 and gols_home_casa >= 1.1 and sofre_home_casa <= 1.4 and sofre_away_fora >= 1.2:
+            media_conf.append("🔐 Dupla chance: 1X (média)")
+
+        if L_away < 3 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
+            alta_conf.append("🔐 Dupla chance: X2 (alta)")
+        elif L_away < 4 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.4 and sofre_home_casa >= 1.2:
+            media_conf.append("🔐 Dupla chance: X2 (média)")
+
+        # Over 1.5
+        marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
+        marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
+
+        if gm_home + gm_away >= 2.5 and gs_home + gs_away >= 2.0 and marcou_home and marcou_away:
+            alta_conf.append("⚽ Over 1.5 gols (alta)")
+        elif gm_home + gm_away >= 2.2 and gs_home + gs_away >= 2.0 and (marcou_home or marcou_away):
+            media_conf.append("⚠️ Over 1.5 gols (média)")
+
+        # Under 2.5
+        if gm_home + gm_away < 1.5 and gs_home + gs_away < 1.5 and (shots_home + shots_away) < 5 and ("0" in form_home or "LL" in form_home or "0" in form_away or "LL" in form_away):
+            alta_conf.append("🧱 Under 2.5 gols (alta)")
+        elif gm_home + gm_away < 2.0 and gs_home + gs_away < 2.0 and (shots_home + shots_away) < 6 and ("0" in form_home or "LL" in form_home or "0" in form_away or "LL" in form_away):
+            media_conf.append("🧱 Under 2.5 gols (média)")
+
+        # Ambas NÃO Marcam
+        if gm_home + gm_away < 1.5 and gs_home + gs_away < 1.5 and (clean_home + clean_away) > 4:
+            alta_conf.append("❌ Ambas NÃO marcam (alta)")
+        elif gm_home + gm_away < 1.8 and gs_home + gs_away < 1.8 and (clean_home + clean_away) > 3:
+            media_conf.append("❌ Ambas NÃO marcam (média)")
+
+        # Over 0.5 Gol do Mandante
+        marcou2_home = form_home[:2].count("W") + form_home[:2].count("D")
+        marcou1_home = form_home[:1].count("W") + form_home[:1].count("D")
+        if gols_home_casa >= 1.5 and sofre_away_fora >= 1.5 and marcou2_home == 2:
+            alta_conf.append("⚽ Gol do Mandante (alta)")
+        elif gols_home_casa >= 1.3 and sofre_away_fora >= 1.3 and marcou1_home == 1:
+            media_conf.append("⚽ Gol do Mandante (média)")
+
+        # Over 0.5 Gol do Visitante
+        marcou2_away = form_away[:2].count("W") + form_away[:2].count("D")
+        marcou1_away = form_away[:1].count("W") + form_away[:1].count("D")
+        if gols_away_fora >= 1.5 and sofre_home_casa >= 1.5 and marcou2_away == 2:
+            alta_conf.append("⚽ Gol do Visitante (alta)")
+        elif gols_away_fora >= 1.3 and sofre_home_casa >= 1.3 and marcou1_away == 1:
+            media_conf.append("⚽ Gol do Visitante (média)")
+
+        # Empate no intervalo
+        if gm_home < 0.5 and gm_away < 0.5 and gs_home < 0.5 and gs_away < 0.5 and (shots_home + shots_away) < 5:
+            if "D" in form_home or "D" in form_away:
+                alta_conf.append("⏱️ Empate no 1º tempo (alta)")
+
+        todas = alta_conf + media_conf
+        return "\n".join(todas) if todas else "Sem sugestão clara"
+    except:
+        return "Sem sugestão clara"
 def sugestao_de_placar(stats_home, stats_away, sugestao_texto=""):
     try:
         g_home = (
@@ -57,24 +145,6 @@ def sugestao_de_placar(stats_home, stats_away, sugestao_texto=""):
             float(stats_away["goals"]["for"]["average"].get("away", 0)) +
             float(stats_home["goals"]["against"]["average"].get("home", 0))
         ) / 2
-
-        form_home = stats_home.get("form", "")
-        form_away = stats_away.get("form", "")
-        if form_home.endswith("WW"): g_home += 1
-        if form_home.endswith("LL"): g_home -= 1
-        if form_away.endswith("WW"): g_away += 1
-        if form_away.endswith("LL"): g_away -= 1
-
-        if "Dupla chance: 1X" in sugestao_texto: g_home += 1
-        if "Dupla chance: X2" in sugestao_texto: g_away += 1
-
-        soma = g_home + g_away
-        if "Over 1.5" in sugestao_texto and soma < 2:
-            g_home += 1
-        if "Under 3.5" in sugestao_texto and soma > 3:
-            excesso = soma - 3
-            g_home -= excesso / 2
-            g_away -= excesso / 2
 
         g_home = max(0, round(g_home))
         g_away = max(0, round(g_away))
@@ -116,6 +186,7 @@ def formatar_jogo(jogo):
         f"🔢 *Placar provável:* {placar}\n\n"
         f"💡 *Sugestões:*\n{sugestoes if sugestoes else 'Sem sugestão clara'}"
     )
+
 def verificar_pre_jogos():
     enviados = carregar_enviados()
     jogos = buscar_jogos_do_dia()
