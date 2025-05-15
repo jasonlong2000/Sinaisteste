@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from telegram import Bot
 import pytz
 import time
@@ -36,16 +36,9 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
 def buscar_jogos_do_dia():
-    agora_utc = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
-    inicio_utc = agora_utc.replace(hour=6)
-    if agora_utc.hour < 6:
-        inicio_utc -= timedelta(days=1)
-    fim_utc = inicio_utc + timedelta(hours=21)
-
-    inicio_str = inicio_utc.strftime("%Y-%m-%dT%H:%M:%S")
-    fim_str = fim_utc.strftime("%Y-%m-%dT%H:%M:%S")
-
-    url = f"https://v3.football.api-sports.io/fixtures?from={inicio_str}&to={fim_str}"
+    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
+    hoje_br = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", [])
 
@@ -205,7 +198,7 @@ def verificar_resultados():
     for linha in linhas:
         jogo_id, time_home, time_away, previsao = linha.strip().split(";")
         if "Sem sugestão clara" in previsao:
-            continue  # ignora jogos sem sugestões reais
+            continue  # Ignora previsões sem sugestão
 
         url = f"https://v3.football.api-sports.io/fixtures?id={jogo_id}"
         res = requests.get(url, headers=HEADERS).json()
