@@ -21,6 +21,18 @@ LIGAS_PERMITIDAS = {
 
 HEADERS = {"x-apisports-key": API_KEY}
 
+def buscar_jogos_do_dia():
+    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
+    hoje_br = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
+    res = requests.get(url, headers=HEADERS)
+    return res.json().get("response", [])
+
+def buscar_estatisticas(league_id, season, team_id):
+    url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
+    res = requests.get(url, headers=HEADERS)
+    return res.json().get("response", {})
+
 def carregar_enviados():
     if os.path.exists(ARQUIVO_ENVIADOS):
         with open(ARQUIVO_ENVIADOS, "r") as f:
@@ -35,19 +47,6 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
     with open(ARQUIVO_RESULTADOS, "a") as f:
         f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
 
-def buscar_jogos_do_dia():
-    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
-    hoje_br = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
-    res = requests.get(url, headers=HEADERS)
-    return res.json().get("response", [])
-
-def buscar_estatisticas(league_id, season, team_id):
-    url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
-    res = requests.get(url, headers=HEADERS)
-    return res.json().get("response", {})
-
-# inicia gerar_sugestao e continua na parte 2
 def gerar_sugestao(stats_home, stats_away):
     try:
         gm_home = float(stats_home["goals"]["for"]["average"]["total"])
@@ -79,16 +78,15 @@ def gerar_sugestao(stats_home, stats_away):
         # Dupla Chance
         L_home = form_home.count("L")
         L_away = form_away.count("L")
-
         if L_home < 3 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
             alta_conf.append("🔐 Dupla chance: 1X (alta)")
         elif L_home < 4 and gols_home_casa >= 1.1 and sofre_home_casa <= 1.4 and sofre_away_fora >= 1.2:
             media_conf.append("🔐 Dupla chance: 1X (média)")
-
         if L_away < 3 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
             alta_conf.append("🔐 Dupla chance: X2 (alta)")
         elif L_away < 4 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.4 and sofre_home_casa >= 1.2:
             media_conf.append("🔐 Dupla chance: X2 (média)")
+
         # Over 1.5
         marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
         marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
@@ -96,20 +94,19 @@ def gerar_sugestao(stats_home, stats_away):
             alta_conf.append("⚽ Over 1.5 gols (alta)")
         elif gm_home + gm_away >= 2.2 and gs_home + gs_away >= 2.0 and (marcou_home or marcou_away):
             media_conf.append("⚠️ Over 1.5 gols (média)")
-
         # Under 2.5
         if gm_home + gm_away < 1.5 and gs_home + gs_away < 1.5 and (shots_home + shots_away) < 5 and ("0" in form_home or "LL" in form_home or "0" in form_away or "LL" in form_away):
             alta_conf.append("🧱 Under 2.5 gols (alta)")
         elif gm_home + gm_away < 2.0 and gs_home + gs_away < 2.0 and (shots_home + shots_away) < 6 and ("0" in form_home or "LL" in form_home or "0" in form_away or "LL" in form_away):
             media_conf.append("🧱 Under 2.5 gols (média)")
 
-        # Ambas NÃO marcam
+        # Ambas NÃO Marcam
         if gm_home + gm_away < 1.5 and gs_home + gs_away < 1.5 and (clean_home + clean_away) > 4:
             alta_conf.append("❌ Ambas NÃO marcam (alta)")
         elif gm_home + gm_away < 1.8 and gs_home + gs_away < 1.8 and (clean_home + clean_away) > 3:
             media_conf.append("❌ Ambas NÃO marcam (média)")
 
-        # Over 0.5 do Mandante
+        # Over 0.5 Mandante
         marcou2_home = form_home[:2].count("W") + form_home[:2].count("D")
         marcou1_home = form_home[:1].count("W") + form_home[:1].count("D")
         if gols_home_casa >= 1.5 and sofre_away_fora >= 1.5 and marcou2_home == 2:
@@ -117,7 +114,7 @@ def gerar_sugestao(stats_home, stats_away):
         elif gols_home_casa >= 1.3 and sofre_away_fora >= 1.3 and marcou1_home == 1:
             media_conf.append("⚽ Gol do Mandante (média)")
 
-        # Over 0.5 do Visitante
+        # Over 0.5 Visitante
         marcou2_away = form_away[:2].count("W") + form_away[:2].count("D")
         marcou1_away = form_away[:1].count("W") + form_away[:1].count("D")
         if gols_away_fora >= 1.5 and sofre_home_casa >= 1.5 and marcou2_away == 2:
@@ -125,7 +122,7 @@ def gerar_sugestao(stats_home, stats_away):
         elif gols_away_fora >= 1.3 and sofre_home_casa >= 1.3 and marcou1_away == 1:
             media_conf.append("⚽ Gol do Visitante (média)")
 
-        # Empate no 1º tempo
+        # Empate no intervalo
         if gm_home < 0.5 and gm_away < 0.5 and gs_home < 0.5 and gs_away < 0.5 and (shots_home + shots_away) < 5:
             if "D" in form_home or "D" in form_away:
                 alta_conf.append("⏱️ Empate no 1º tempo (alta)")
@@ -133,6 +130,24 @@ def gerar_sugestao(stats_home, stats_away):
         return "\n".join(alta_conf + media_conf) if alta_conf or media_conf else "Sem sugestão clara"
     except:
         return "Sem sugestão clara"
+
+def sugestao_de_placar(stats_home, stats_away, sugestao_texto=""):
+    try:
+        g_home = (
+            float(stats_home["goals"]["for"]["average"].get("home", 0)) +
+            float(stats_away["goals"]["against"]["average"].get("away", 0))
+        ) / 2
+        g_away = (
+            float(stats_away["goals"]["for"]["average"].get("away", 0)) +
+            float(stats_home["goals"]["against"]["average"].get("home", 0))
+        ) / 2
+
+        g_home = max(0, round(g_home))
+        g_away = max(0, round(g_away))
+        alt = f"{g_home+1} x {g_away}" if g_home <= g_away else f"{g_home} x {g_away+1}"
+        return f"{g_home} x {g_away} ou {alt}"
+    except:
+        return "Indefinido"
 
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
@@ -146,7 +161,9 @@ def formatar_jogo(jogo):
 
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
+
     sugestoes = gerar_sugestao(stats_home, stats_away)
+    placar = sugestao_de_placar(stats_home, stats_away, sugestoes)
 
     dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
     data = dt.strftime("%d/%m")
@@ -162,6 +179,7 @@ def formatar_jogo(jogo):
         f"🌍 {league['name']}\n"
         f"📅 {data} | 🕒 {hora}\n"
         f"📌 Status: {fixture['status']['short']}\n\n"
+        f"🔢 *Placar provável:* {placar}\n\n"
         f"💡 *Sugestões:*\n{sugestoes}"
     )
 
@@ -182,7 +200,6 @@ def verificar_pre_jogos():
 def verificar_resultados():
     if not os.path.exists(ARQUIVO_RESULTADOS):
         return
-
     with open(ARQUIVO_RESULTADOS, "r") as f:
         linhas = f.readlines()
 
@@ -253,7 +270,7 @@ def verificar_resultados():
     bot.send_message(chat_id=CHAT_ID, text=final.strip(), parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com 8 estratégias completas!")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com 8 estratégias e placares prováveis!")
     while True:
         verificar_pre_jogos()
         verificar_resultados()
