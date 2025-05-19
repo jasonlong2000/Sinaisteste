@@ -37,8 +37,8 @@ def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
 
 def buscar_jogos_do_dia():
     fuso_brasilia = pytz.timezone("America/Sao_Paulo")
-    hoje_br = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
-    url = f"https://v3.football.api-sports.io/fixtures?date={hoje_br}"
+    hoje = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
+    url = f"https://v3.football.api-sports.io/fixtures?date={hoje}"
     res = requests.get(url, headers=HEADERS)
     return res.json().get("response", [])
 
@@ -68,63 +68,47 @@ def gerar_sugestao(stats_home, stats_away):
 
         alta_conf = []
         media_conf = []
-
-        # Estratégias aqui continuam na Parte 2
-        # Under 3.5
-        if gm_home + gm_away <= 2.4 and gs_home + gs_away <= 2.0 and (shots_home + shots_away) < 6:
-            alta_conf.append("🧤 Under 3.5 gols (alta)")
-        elif gm_home + gm_away <= 2.8 and gs_home + gs_away <= 2.2 and (shots_home + shots_away) < 8:
-            media_conf.append("🧤 Under 3.5 gols (média)")
-
-        # Dupla Chance
-        L_home = form_home.count("L")
-        L_away = form_away.count("L")
-        if L_home < 3 and gols_home_casa >= 1.2 and sofre_home_casa <= 1.3 and sofre_away_fora >= 1.3:
-            alta_conf.append("🔐 Dupla chance: 1X (alta)")
-        elif L_home < 4 and gols_home_casa >= 1.1 and sofre_home_casa <= 1.4 and sofre_away_fora >= 1.2:
-            media_conf.append("🔐 Dupla chance: 1X (média)")
-        if L_away < 3 and gols_away_fora >= 1.2 and sofre_away_fora <= 1.3 and sofre_home_casa >= 1.3:
-            alta_conf.append("🔐 Dupla chance: X2 (alta)")
-        elif L_away < 4 and gols_away_fora >= 1.1 and sofre_away_fora <= 1.4 and sofre_home_casa >= 1.2:
-            media_conf.append("🔐 Dupla chance: X2 (média)")
-
-        # Over 1.5
-        marcou_home = "W" in form_home[:2] or "D" in form_home[:2]
-        marcou_away = "W" in form_away[:2] or "D" in form_away[:2]
-        if gm_home + gm_away >= 2.5 and gs_home + gs_away >= 2.0 and marcou_home and marcou_away:
-            alta_conf.append("⚽ Over 1.5 gols (alta)")
-        elif gm_home + gm_away >= 2.2 and gs_home + gs_away >= 2.0 and (marcou_home or marcou_away):
-            media_conf.append("⚠️ Over 1.5 gols (média)")
-
-        # Under 2.5
-        if gm_home + gm_away < 1.5 and gs_home + gs_away < 1.5 and (shots_home + shots_away) < 5 and ("0" in form_home or "LL" in form_home or "0" in form_away or "LL" in form_away):
+        # Under 2.5 (alta e média)
+        if (
+            gm_home + gm_away < 1.5 and
+            gs_home + gs_away < 1.5 and
+            (shots_home + shots_away) < 5 and
+            "0" in form_home[:1] and "0" in form_away[:1]
+        ):
             alta_conf.append("🧱 Under 2.5 gols (alta)")
-        elif gm_home + gm_away < 2.0 and gs_home + gs_away < 2.0 and (shots_home + shots_away) < 6 and ("0" in form_home or "LL" in form_home or "0" in form_away or "LL" in form_away):
+        elif (
+            gm_home + gm_away < 2.0 and
+            gs_home + gs_away < 2.0 and
+            (shots_home + shots_away) < 6 and
+            ("0" in form_home[:1] or "0" in form_away[:1])
+        ):
             media_conf.append("🧱 Under 2.5 gols (média)")
 
         # Ambas NÃO Marcam
-        if gm_home + gm_away < 1.5 and gs_home + gs_away < 1.5 and (clean_home + clean_away) > 4:
+        if gm_home + gm_away < 1.5 and gs_home < 0.8 and gs_away < 0.8:
             alta_conf.append("❌ Ambas NÃO marcam (alta)")
-        elif gm_home + gm_away < 1.8 and gs_home + gs_away < 1.8 and (clean_home + clean_away) > 3:
+        elif gm_home + gm_away < 1.8 and gs_home < 1.0 and gs_away < 1.0:
             media_conf.append("❌ Ambas NÃO marcam (média)")
 
-        # Gol do Mandante
-        marcou2_home = form_home[:2].count("W") + form_home[:2].count("D")
-        marcou1_home = form_home[:1].count("W") + form_home[:1].count("D")
-        if gols_home_casa >= 1.5 and sofre_away_fora >= 1.5 and marcou2_home == 2:
-            alta_conf.append("⚽ Gol do Mandante (alta)")
-        elif gols_home_casa >= 1.3 and sofre_away_fora >= 1.3 and marcou1_home == 1:
-            media_conf.append("⚽ Gol do Mandante (média)")
+        # Over 1.5 do Mandante → agora é 2+
+        if gols_home_casa > 2.5 and sofre_away_fora > 2.0 and "W" in form_home[:2]:
+            alta_conf.append("⚽ Mandante pode marcar 2+ (alta)")
+        elif gols_home_casa > 2.0 and sofre_away_fora > 1.8 and "W" in form_home[:1]:
+            media_conf.append("⚽ Mandante pode marcar 2+ (média)")
 
-        # Gol do Visitante
-        marcou2_away = form_away[:2].count("W") + form_away[:2].count("D")
-        marcou1_away = form_away[:1].count("W") + form_away[:1].count("D")
-        if gols_away_fora >= 1.5 and sofre_home_casa >= 1.5 and marcou2_away == 2:
-            alta_conf.append("⚽ Gol do Visitante (alta)")
-        elif gols_away_fora >= 1.3 and sofre_home_casa >= 1.3 and marcou1_away == 1:
-            media_conf.append("⚽ Gol do Visitante (média)")
+        # Over 1.5 do Visitante → agora é 2+
+        if gols_away_fora > 2.5 and sofre_home_casa > 2.0 and "W" in form_away[:2]:
+            alta_conf.append("⚽ Visitante pode marcar 2+ (alta)")
+        elif gols_away_fora > 2.0 and sofre_home_casa > 1.8 and "W" in form_away[:1]:
+            media_conf.append("⚽ Visitante pode marcar 2+ (média)")
 
-        # Empate no intervalo
+        # Over 2.5 Gols no jogo
+        if gm_home + gm_away > 3.5 and gs_home + gs_away > 2.0 and (shots_home + shots_away) > 10:
+            alta_conf.append("🔥 Over 2.5 gols (alta)")
+        elif gm_home + gm_away > 3.0 and gs_home + gs_away > 1.8 and (shots_home + shots_away) > 8:
+            media_conf.append("🔥 Over 2.5 gols (média)")
+
+        # Empate no 1º tempo
         if gm_home < 0.5 and gm_away < 0.5 and gs_home < 0.5 and gs_away < 0.5 and (shots_home + shots_away) < 5:
             if "D" in form_home or "D" in form_away:
                 alta_conf.append("⏱️ Empate no 1º tempo (alta)")
@@ -150,7 +134,7 @@ def sugestao_de_placar(stats_home, stats_away, sugestao_texto=""):
             g_home += 0.5
         if "Dupla chance: X2" in sugestao_texto:
             g_away += 0.5
-        if "Over 1.5" in sugestao_texto and g_home + g_away < 2:
+        if "Over 2.5" in sugestao_texto and g_home + g_away < 2.5:
             g_home += 0.5
         if "Under 3.5" in sugestao_texto and g_home + g_away > 3:
             excesso = g_home + g_away - 3
@@ -161,10 +145,10 @@ def sugestao_de_placar(stats_home, stats_away, sugestao_texto=""):
                 g_away = 0
             else:
                 g_home = 0
-        if "Gol do Mandante" in sugestao_texto and g_home < 1:
-            g_home = 1
-        if "Gol do Visitante" in sugestao_texto and g_away < 1:
-            g_away = 1
+        if "Mandante pode marcar 2+" in sugestao_texto and g_home < 2:
+            g_home = 2
+        if "Visitante pode marcar 2+" in sugestao_texto and g_away < 2:
+            g_away = 2
 
         g_home = max(0, arred(g_home))
         g_away = max(0, arred(g_away))
@@ -253,7 +237,7 @@ def verificar_resultados():
             tipo = "alto" if "(alta" in entrada else "medio"
             acertou = False
 
-            if "Over 1.5" in entrada and (gols_home + gols_away) >= 2:
+            if "Over 2.5" in entrada and (gols_home + gols_away) > 2:
                 acertou = True
             if "Under 3.5" in entrada and (gols_home + gols_away) <= 3:
                 acertou = True
@@ -267,9 +251,9 @@ def verificar_resultados():
                 acertou = True
             if "Dupla chance: X2" in entrada and gols_away >= gols_home:
                 acertou = True
-            if "Gol do Mandante" in entrada and gols_home >= 1:
+            if "Mandante pode marcar 2+" in entrada and gols_home >= 2:
                 acertou = True
-            if "Gol do Visitante" in entrada and gols_away >= 1:
+            if "Visitante pode marcar 2+" in entrada and gols_away >= 2:
                 acertou = True
 
             if tipo == "alto":
@@ -293,7 +277,7 @@ def verificar_resultados():
     bot.send_message(chat_id=CHAT_ID, text=final.strip(), parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com 8 estratégias e placares prováveis!")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com estratégias atualizadas e placar provável!")
     while True:
         verificar_pre_jogos()
         verificar_resultados()
