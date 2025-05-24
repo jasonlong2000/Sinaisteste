@@ -51,8 +51,7 @@ def buscar_estatisticas(league_id, season, team_id):
 
 def resumo_stats(stats):
     chaves = [
-        "form", "clean_sheet", "failed_to_score", "goals", "shots",
-        "lineups", "fixtures", "penalty", "cards"
+        "form", "goals", "shots", "big_chances", "passes", "attacks"
     ]
     linhas = []
     for chave in chaves:
