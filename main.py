@@ -49,51 +49,31 @@ def buscar_estatisticas(league_id, season, team_id):
     data = res.json().get("response", {})
     return data
 
-def resumo_stats(stats):
-    chaves = [
-        "form", "goals", "shots", "big_chances", "passes", "attacks"
-    ]
-    linhas = []
-    for chave in chaves:
-        valor = stats.get(chave, {})
-        linhas.append(f"- {chave}: {json.dumps(valor)}")
-    return "\n".join(linhas)
+def testar_dados_api():
+    jogos = buscar_jogos_do_dia()
+    for jogo in jogos:
+        league = jogo["league"]
+        if league["id"] not in LIGAS_PERMITIDAS:
+            continue
+        home = jogo["teams"]["home"]
+        away = jogo["teams"]["away"]
+        stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
+        stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-def formatar_jogo(jogo):
-    fixture = jogo["fixture"]
-    teams = jogo["teams"]
-    league = jogo["league"]
-    home = teams["home"]
-    away = teams["away"]
+        def resumo(stats):
+            partes = []
+            for chave in ["form", "goals", "shots", "attacks", "big_chances", "passes"]:
+                if chave in stats:
+                    partes.append(f"*{chave}*: `{json.dumps(stats[chave])}`")
+            return "\n".join(partes) if partes else "Sem dados relevantes."
 
-    if league["id"] not in LIGAS_PERMITIDAS:
-        return None
+        msg_home = f"[HOME] *{home['name']}*\n" + resumo(stats_home)
+        msg_away = f"[AWAY] *{away['name']}*\n" + resumo(stats_away)
 
-    stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
-    stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
+        bot.send_message(chat_id=CHAT_ID, text=msg_home, parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text=msg_away, parse_mode="Markdown")
+        break
 
-    resumo_home = resumo_stats(stats_home)
-    resumo_away = resumo_stats(stats_away)
-    bot.send_message(chat_id=CHAT_ID, text=f"[HOME] {home['name']}\n{resumo_home}")
-    bot.send_message(chat_id=CHAT_ID, text=f"[AWAY] {away['name']}\n{resumo_away}")
-
-    sugestoes = gerar_sugestao(stats_home, stats_away)
-    placar = "Indefinido"
-
-    dt = datetime.utcfromtimestamp(fixture["timestamp"]).astimezone(pytz.timezone("America/Sao_Paulo"))
-    data = dt.strftime("%d/%m")
-    hora = dt.strftime("%H:%M")
-
-    salvar_resultado_previsto(
-        fixture["id"], home["name"], away["name"],
-        sugestoes.replace("\n", " | ") if sugestoes else "Sem sugestão clara"
-    )
-
-    return (
-        f"⚽ *{home['name']} x {away['name']}*\n"
-        f"🌍 {league['name']}\n"
-        f"📅 {data} | 🕒 {hora}\n"
-        f"📌 Status: {fixture['status']['short']}\n\n"
-        f"🔢 *Placar provável:* {placar}\n\n"
-        f"💡 *Sugestões de entrada:*\n{sugestoes}"
-    )
+if __name__ == "__main__":
+    testar_dados_api()
+    exit()
