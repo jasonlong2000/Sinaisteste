@@ -70,19 +70,17 @@ def gerar_sugestao(stats_home, stats_away):
         total_marcados = gm_home + gm_away
         total_sofridos = gs_home + gs_away
 
-        # Under 3.5 (com verificação dos últimos jogos)
-        if total_marcados < 2.5 and total_sofridos < 2.5:
-            if "0" in form_home[:1] and "0" in form_away[:1]:
-                alta_conf.append("🧱 Under 3.5 gols (alta)")
-            elif "0" in form_home[:1] or "0" in form_away[:1]:
-                media_conf.append("🧱 Under 3.5 gols (média)")
+        # Under 3.5
+        if total_marcados < 2.5 and total_sofridos < 2.5 and form_home[:1] == "0" and form_away[:1] == "0":
+            alta_conf.append("🧱 Under 3.5 gols (alta)")
+        elif total_marcados < 2.8 and total_sofridos < 2.8 and form_home[:1] == "0" and form_away[:1] == "0":
+            media_conf.append("🧱 Under 3.5 gols (média)")
 
-        # Over 1.5 (com verificação dos últimos jogos)
-        if total_marcados > 2.5 and total_sofridos > 1.5:
-            if "3" in form_home[:1] and "3" in form_away[:1]:
-                alta_conf.append("🔥 Over 1.5 gols (alta)")
-            elif "2" in form_home[:1] or "2" in form_away[:1]:
-                media_conf.append("🔥 Over 1.5 gols (média)")
+        # Over 1.5
+        if total_marcados > 2.3 and total_sofridos > 1.5 and form_home[:1] in ["2", "3"] and form_away[:1] in ["2", "3"]:
+            alta_conf.append("🔥 Over 1.5 gols (alta)")
+        elif total_marcados > 2.0 and total_sofridos > 1.3 and form_home[:1] in ["2", "3"] and form_away[:1] in ["2", "3"]:
+            media_conf.append("🔥 Over 1.5 gols (média)")
 
         # Ambas NÃO marcam
         if total_marcados < 1.5 and gs_home < 0.8 and gs_away < 0.8:
