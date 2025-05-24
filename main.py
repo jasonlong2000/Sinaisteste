@@ -49,6 +49,17 @@ def buscar_estatisticas(league_id, season, team_id):
     data = res.json().get("response", {})
     return data
 
+def resumo_stats(stats):
+    chaves = [
+        "form", "clean_sheet", "failed_to_score", "goals", "shots",
+        "lineups", "fixtures", "penalty", "cards"
+    ]
+    linhas = []
+    for chave in chaves:
+        valor = stats.get(chave, {})
+        linhas.append(f"- {chave}: {json.dumps(valor)}")
+    return "\n".join(linhas)
+
 def formatar_jogo(jogo):
     fixture = jogo["fixture"]
     teams = jogo["teams"]
@@ -62,9 +73,10 @@ def formatar_jogo(jogo):
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    # Enviar todos os dados disponíveis para análise
-    bot.send_message(chat_id=CHAT_ID, text=f"[DEBUG] Dados HOME:\n{json.dumps(stats_home, indent=2)}")
-    bot.send_message(chat_id=CHAT_ID, text=f"[DEBUG] Dados AWAY:\n{json.dumps(stats_away, indent=2)}")
+    resumo_home = resumo_stats(stats_home)
+    resumo_away = resumo_stats(stats_away)
+    bot.send_message(chat_id=CHAT_ID, text=f"[HOME] {home['name']}\n{resumo_home}")
+    bot.send_message(chat_id=CHAT_ID, text=f"[AWAY] {away['name']}\n{resumo_away}")
 
     sugestoes = gerar_sugestao(stats_home, stats_away)
     placar = "Indefinido"
