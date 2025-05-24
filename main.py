@@ -60,37 +60,34 @@ def gerar_sugestao(stats_home, stats_away):
 
         gols_home_casa = float(stats_home["goals"]["for"]["average"].get("home", 0))
         gols_away_fora = float(stats_away["goals"]["for"]["average"].get("away", 0))
+
         sofre_home_casa = float(stats_home["goals"]["against"]["average"].get("home", 0))
         sofre_away_fora = float(stats_away["goals"]["against"]["average"].get("away", 0))
-
-        loses_home = int(stats_home.get("biggest", {}).get("loses", {}).get("home", 0))
-        loses_away = int(stats_away.get("biggest", {}).get("loses", {}).get("away", 0))
-
-        clean_home = stats_home.get("clean_sheet", {}).get("total", 0)
-        clean_away = stats_away.get("clean_sheet", {}).get("total", 0)
-
-        failed_home = stats_home.get("failed_to_score", {}).get("total", 0)
-        failed_away = stats_away.get("failed_to_score", {}).get("total", 0)
 
         alta_conf = []
         media_conf = []
 
-        # Under 3.5
-        if gm_home + gm_away < 2.0 and gs_home + gs_away < 2.0:
-            alta_conf.append("🧱 Under 3.5 gols (alta)")
-        elif gm_home + gm_away < 2.5 and gs_home + gs_away < 2.3:
-            media_conf.append("🧱 Under 3.5 gols (média)")
+        total_marcados = gm_home + gm_away
+        total_sofridos = gs_home + gs_away
 
-        # Over 1.5
-        if gm_home + gm_away > 3.0 and gs_home + gs_away > 2.0:
-            alta_conf.append("🔥 Over 1.5 gols (alta)")
-        elif gm_home + gm_away > 2.5 and gs_home + gs_away > 1.8:
-            media_conf.append("🔥 Over 1.5 gols (média)")
+        # Under 3.5 (com verificação dos últimos jogos)
+        if total_marcados < 2.5 and total_sofridos < 2.5:
+            if "0" in form_home[:1] and "0" in form_away[:1]:
+                alta_conf.append("🧱 Under 3.5 gols (alta)")
+            elif "0" in form_home[:1] or "0" in form_away[:1]:
+                media_conf.append("🧱 Under 3.5 gols (média)")
+
+        # Over 1.5 (com verificação dos últimos jogos)
+        if total_marcados > 2.5 and total_sofridos > 1.5:
+            if "3" in form_home[:1] and "3" in form_away[:1]:
+                alta_conf.append("🔥 Over 1.5 gols (alta)")
+            elif "2" in form_home[:1] or "2" in form_away[:1]:
+                media_conf.append("🔥 Over 1.5 gols (média)")
 
         # Ambas NÃO marcam
-        if gm_home + gm_away < 1.5 and gs_home < 0.8 and gs_away < 0.8:
+        if total_marcados < 1.5 and gs_home < 0.8 and gs_away < 0.8:
             alta_conf.append("❌ Ambas NÃO marcam (alta)")
-        elif gm_home + gm_away < 1.8 and gs_home < 1.0 and gs_away < 1.0:
+        elif total_marcados < 1.8 and gs_home < 1.0 and gs_away < 1.0:
             media_conf.append("❌ Ambas NÃO marcam (média)")
 
         # Under 1.5 por time
@@ -104,20 +101,18 @@ def gerar_sugestao(stats_home, stats_away):
         elif gols_away_fora < 1.0 and sofre_home_casa < 1.0:
             media_conf.append("🚫 Under 1.5 gols do visitante (média)")
 
-        # Dupla chance reforçada com biggest.loses
+        # Dupla chance
         if (
             form_home[:5].count("L") < 2 and
             gols_home_casa >= 1.5 and
-            sofre_away_fora >= 1.5 and
-            loses_away >= 3
+            sofre_away_fora >= 1.5
         ):
             alta_conf.append("🛡️ Dupla chance: 1X (alta)")
 
         if (
             form_away[:5].count("L") < 2 and
             gols_away_fora >= 1.5 and
-            sofre_home_casa >= 1.5 and
-            loses_home >= 3
+            sofre_home_casa >= 1.5
         ):
             alta_conf.append("🛡️ Dupla chance: X2 (alta)")
 
@@ -265,7 +260,7 @@ def verificar_resultados():
     bot.send_message(chat_id=CHAT_ID, text=final.strip(), parse_mode="Markdown")
 
 if __name__ == "__main__":
-    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com todas as estratégias atualizadas!")
+    bot.send_message(chat_id=CHAT_ID, text="✅ Robô ativado com estratégias atualizadas por gols marcados!")
     while True:
         verificar_pre_jogos()
         verificar_resultados()
