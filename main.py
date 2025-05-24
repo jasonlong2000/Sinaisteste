@@ -4,6 +4,7 @@ from telegram import Bot
 import pytz
 import time
 import os
+import json
 
 API_KEY = "6810ea1e7c44dab18f4fc039b73e8dd2"
 BOT_TOKEN = "7430245294:AAGrVA6wHvM3JsYhPTXQzFmWJuJS2blam80"
@@ -20,39 +21,42 @@ def buscar_jogo_completo():
     res = requests.get(url, headers=HEADERS).json()
     jogos = res.get("response", [])
     for jogo in jogos:
-        return jogo  # pega o primeiro
+        return jogo
     return None
 
 
-def testar_escanteios():
+def testar_dados_estrategicos():
     jogo = buscar_jogo_completo()
     if not jogo:
         bot.send_message(chat_id=CHAT_ID, text="Nenhum jogo encontrado para hoje.")
         return
 
-    fixture_id = jogo["fixture"]["id"]
-    home_team = jogo["teams"]["home"]["name"]
-    away_team = jogo["teams"]["away"]["name"]
+    league = jogo["league"]
+    home = jogo["teams"]["home"]
+    away = jogo["teams"]["away"]
+    stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
+    stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    url = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={fixture_id}"
-    res = requests.get(url, headers=HEADERS).json()
-    stats = res.get("response", [])
+    def resumo_estrategico(stats):
+        dados = {}
+        dados["form"] = stats.get("form")
+        dados["goals"] = stats.get("goals")
+        dados["clean_sheet"] = stats.get("clean_sheet")
+        dados["failed_to_score"] = stats.get("failed_to_score")
+        dados["shots"] = stats.get("shots")
+        dados["attacks"] = stats.get("attacks")
+        return json.dumps(dados, indent=2)
 
-    if not stats:
-        bot.send_message(chat_id=CHAT_ID, text="Sem estatísticas disponíveis ainda para esse jogo.")
-        return
+    bot.send_message(chat_id=CHAT_ID, text=f"[HOME] {home['name']}\n{resumo_estrategico(stats_home)}")
+    bot.send_message(chat_id=CHAT_ID, text=f"[AWAY] {away['name']}\n{resumo_estrategico(stats_away)}")
 
-    mensagens = []
-    for time_stats in stats:
-        team = time_stats["team"]["name"]
-        statistics = time_stats["statistics"]
-        corners = next((item for item in statistics if item["type"].lower() == "corners" or "corner" in item["type"].lower()), None)
-        total = corners["value"] if corners else "N/D"
-        mensagens.append(f"{team} teve {total} escanteios")
 
-    bot.send_message(chat_id=CHAT_ID, text="\n".join(mensagens))
+def buscar_estatisticas(league_id, season, team_id):
+    url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
+    res = requests.get(url, headers=HEADERS)
+    return res.json().get("response", {})
 
 
 if __name__ == "__main__":
-    testar_escanteios()
+    testar_dados_estrategicos()
     exit()
