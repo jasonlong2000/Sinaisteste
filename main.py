@@ -25,7 +25,7 @@ def buscar_jogo_completo():
     return None
 
 
-def testar_dados_estrategicos():
+def listar_todas_chaves():
     jogo = buscar_jogo_completo()
     if not jogo:
         bot.send_message(chat_id=CHAT_ID, text="Nenhum jogo encontrado para hoje.")
@@ -37,18 +37,11 @@ def testar_dados_estrategicos():
     stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
     stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-    def resumo_estrategico(stats):
-        dados = {}
-        dados["form"] = stats.get("form")
-        dados["goals"] = stats.get("goals")
-        dados["clean_sheet"] = stats.get("clean_sheet")
-        dados["failed_to_score"] = stats.get("failed_to_score")
-        dados["shots"] = stats.get("shots")
-        dados["attacks"] = stats.get("attacks")
-        return json.dumps(dados, indent=2)
+    def chaves(stats):
+        return "\n".join([f"- {k}" for k in stats.keys()])
 
-    bot.send_message(chat_id=CHAT_ID, text=f"[HOME] {home['name']}\n{resumo_estrategico(stats_home)}")
-    bot.send_message(chat_id=CHAT_ID, text=f"[AWAY] {away['name']}\n{resumo_estrategico(stats_away)}")
+    bot.send_message(chat_id=CHAT_ID, text=f"[HOME] {home['name']}\nChaves disponíveis:\n{chaves(stats_home)}")
+    bot.send_message(chat_id=CHAT_ID, text=f"[AWAY] {away['name']}\nChaves disponíveis:\n{chaves(stats_away)}")
 
 
 def buscar_estatisticas(league_id, season, team_id):
@@ -58,5 +51,5 @@ def buscar_estatisticas(league_id, season, team_id):
 
 
 if __name__ == "__main__":
-    testar_dados_estrategicos()
+    listar_todas_chaves()
     exit()
