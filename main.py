@@ -22,20 +22,6 @@ LIGAS_PERMITIDAS = {
 
 HEADERS = {"x-apisports-key": API_KEY}
 
-def carregar_enviados():
-    if os.path.exists(ARQUIVO_ENVIADOS):
-        with open(ARQUIVO_ENVIADOS, "r") as f:
-            return set(line.strip() for line in f)
-    return set()
-
-def salvar_enviado(jogo_id):
-    with open(ARQUIVO_ENVIADOS, "a") as f:
-        f.write(f"{jogo_id}\n")
-
-def salvar_resultado_previsto(jogo_id, time_home, time_away, previsao):
-    with open(ARQUIVO_RESULTADOS, "a") as f:
-        f.write(f"{jogo_id};{time_home};{time_away};{previsao}\n")
-
 def buscar_jogos_do_dia():
     fuso_brasilia = pytz.timezone("America/Sao_Paulo")
     hoje = datetime.now(fuso_brasilia).strftime("%Y-%m-%d")
@@ -46,10 +32,9 @@ def buscar_jogos_do_dia():
 def buscar_estatisticas(league_id, season, team_id):
     url = f"https://v3.football.api-sports.io/teams/statistics?league={league_id}&season={season}&team={team_id}"
     res = requests.get(url, headers=HEADERS)
-    data = res.json().get("response", {})
-    return data
+    return res.json().get("response", {})
 
-def testar_dados_api():
+def testar_todos_os_dados():
     jogos = buscar_jogos_do_dia()
     for jogo in jogos:
         league = jogo["league"]
@@ -60,20 +45,16 @@ def testar_dados_api():
         stats_home = buscar_estatisticas(league["id"], league["season"], home["id"])
         stats_away = buscar_estatisticas(league["id"], league["season"], away["id"])
 
-        def resumo(stats):
-            partes = []
-            for chave in ["form", "goals", "shots", "attacks", "big_chances", "passes"]:
-                if chave in stats:
-                    partes.append(f"*{chave}*: `{json.dumps(stats[chave])}`")
-            return "\n".join(partes) if partes else "Sem dados relevantes."
+        def listar_chaves(stats):
+            return "\n".join([f"- {k}" for k in stats.keys()])
 
-        msg_home = f"[HOME] *{home['name']}*\n" + resumo(stats_home)
-        msg_away = f"[AWAY] *{away['name']}*\n" + resumo(stats_away)
+        msg_home = f"[HOME] {home['name']}\nChaves disponíveis:\n" + listar_chaves(stats_home)
+        msg_away = f"[AWAY] {away['name']}\nChaves disponíveis:\n" + listar_chaves(stats_away)
 
-        bot.send_message(chat_id=CHAT_ID, text=msg_home, parse_mode="Markdown")
-        bot.send_message(chat_id=CHAT_ID, text=msg_away, parse_mode="Markdown")
+        bot.send_message(chat_id=CHAT_ID, text=msg_home)
+        bot.send_message(chat_id=CHAT_ID, text=msg_away)
         break
 
 if __name__ == "__main__":
-    testar_dados_api()
+    testar_todos_os_dados()
     exit()
